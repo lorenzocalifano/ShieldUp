@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/homeFragment"
+        android:icon="@android:drawable/ic_menu_view"
+        android:title="Home" />
+
+    <item
+        android:id="@+id/redZonesFragment"
+        android:icon="@android:drawable/ic_dialog_map"
+        android:title="Red Zones" />
+
+    <item
+        android:id="@+id/supportFragment"
+        android:icon="@android:drawable/ic_menu_call"
+        android:title="Supporto" />
+
+    <item
+        android:id="@+id/settingsFragment"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:title="Profilo" />
+
+</menu>
