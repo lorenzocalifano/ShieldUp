@@ -24,6 +24,12 @@
         tools:layout="@layout/fragment_support" />
 
     <fragment
+        android:id="@+id/contactsFragment"
+        android:name="com.lorenzocalifano.shieldup.ui.contacts.ContactsFragment"
+        android:label="Contatti SOS"
+        tools:layout="@layout/fragment_contacts" />
+
+    <fragment
         android:id="@+id/settingsFragment"
         android:name="com.lorenzocalifano.shieldup.ui.settings.SettingsFragment"
         android:label="Impostazioni"
