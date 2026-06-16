@@ -1,18 +1,21 @@
 package com.lorenzocalifano.shieldup
 
+import android.Manifest
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.navigation.fragment.NavHostFragment
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.lorenzocalifano.shieldup.databinding.ActivityMainBinding
-import android.Manifest
-import androidx.activity.result.contract.ActivityResultContracts
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+
+    private val permissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            // Per ora non blocchiamo l'app se l'utente nega i permessi
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -21,13 +24,20 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         requestInitialPermissions()
+        setupBottomNavigation()
+    }
 
-        ViewCompat.setOnApplyWindowInsetsListener(binding.main) { view, insets ->
-            val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-            view.setPadding(0, systemBars.top, 0, 0)
-            insets
-        }
+    private fun requestInitialPermissions() {
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            )
+        )
+    }
 
+    private fun setupBottomNavigation() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
 
@@ -40,37 +50,24 @@ class MainActivity : AppCompatActivity() {
                     navController.popBackStack(R.id.homeFragment, false)
                     true
                 }
+
                 R.id.redZonesFragment -> {
                     navController.navigate(R.id.redZonesFragment)
                     true
                 }
+
                 R.id.supportFragment -> {
                     navController.navigate(R.id.supportFragment)
                     true
                 }
+
                 R.id.settingsFragment -> {
                     navController.navigate(R.id.settingsFragment)
                     true
                 }
+
                 else -> false
             }
         }
-    }
-
-    private val permissionLauncher =
-
-        registerForActivityResult(
-            ActivityResultContracts.RequestMultiplePermissions()
-        ) { }
-
-    private fun requestInitialPermissions() {
-
-        val permissions = arrayOf(
-            Manifest.permission.SEND_SMS,
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
-        )
-
-        permissionLauncher.launch(permissions)
     }
 }
