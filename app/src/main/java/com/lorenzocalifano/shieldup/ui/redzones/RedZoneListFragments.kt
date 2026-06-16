@@ -1,24 +1,21 @@
 package com.lorenzocalifano.shieldup.ui.redzones
 
-import android.content.Context
 import android.os.Bundle
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.lorenzocalifano.shieldup.R
+import com.lorenzocalifano.shieldup.data.FirebaseRepository
+import com.lorenzocalifano.shieldup.data.RedZoneDto
 
 class RedZoneListFragment : Fragment(R.layout.fragment_red_zone_list) {
 
-    data class RedZoneItem(
-        val title: String,
-        val description: String,
-        val latitude: Double,
-        val longitude: Double,
-        val createdAt: Long,
-        val expiresAt: Long
-    )
+    private val repository = FirebaseRepository()
+    private val redZoneDurationMs = 60L * 60L * 1000L
+    private val recentDurationMs = 3L * 24L * 60L * 60L * 1000L
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val activeContainer = view.findViewById<LinearLayout>(R.id.activeContainer)
@@ -28,17 +25,55 @@ class RedZoneListFragment : Fragment(R.layout.fragment_red_zone_list) {
             findNavController().popBackStack()
         }
 
-        val zones = loadRedZones()
-        val now = System.currentTimeMillis()
-
-        val active = zones.filter { it.expiresAt > now }
-        val recent = zones.filter { now - it.createdAt <= 3L * 24L * 60L * 60L * 1000L }
-
-        fillContainer(activeContainer, active, "Nessuna segnalazione attiva")
-        fillContainer(recentContainer, recent, "Nessuna segnalazione recente")
+        loadRedZonesFromFirestore(activeContainer, recentContainer)
     }
 
-    private fun fillContainer(container: LinearLayout, items: List<RedZoneItem>, emptyText: String) {
+    private fun loadRedZonesFromFirestore(
+        activeContainer: LinearLayout,
+        recentContainer: LinearLayout
+    ) {
+        repository.loadRedZones(
+            onSuccess = { zones ->
+                val now = System.currentTimeMillis()
+
+                val activeZones = zones.filter {
+                    now - it.createdAt < redZoneDurationMs
+                }
+
+                val recentZones = zones.filter {
+                    now - it.createdAt < recentDurationMs
+                }
+
+                fillContainer(
+                    container = activeContainer,
+                    items = activeZones,
+                    emptyText = "Nessuna segnalazione attiva"
+                )
+
+                fillContainer(
+                    container = recentContainer,
+                    items = recentZones,
+                    emptyText = "Nessuna segnalazione recente"
+                )
+            },
+            onError = { exception ->
+                Toast.makeText(
+                    requireContext(),
+                    exception.message ?: "Errore caricamento segnalazioni",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                fillContainer(activeContainer, emptyList(), "Errore caricamento")
+                fillContainer(recentContainer, emptyList(), "Errore caricamento")
+            }
+        )
+    }
+
+    private fun fillContainer(
+        container: LinearLayout,
+        items: List<RedZoneDto>,
+        emptyText: String
+    ) {
         container.removeAllViews()
 
         if (items.isEmpty()) {
@@ -55,11 +90,19 @@ class RedZoneListFragment : Fragment(R.layout.fragment_red_zone_list) {
         }
     }
 
-    private fun createCard(item: RedZoneItem): TextView {
-        val minutesLeft = ((item.expiresAt - System.currentTimeMillis()) / 60000).coerceAtLeast(0)
+    private fun createCard(item: RedZoneDto): TextView {
+        val now = System.currentTimeMillis()
+        val minutesLeft = ((redZoneDurationMs - (now - item.createdAt)) / 60000)
+            .coerceAtLeast(0)
+
+        val statusText = if (minutesLeft > 0) {
+            "Scade tra circa $minutesLeft min"
+        } else {
+            "Segnalazione recente non più attiva"
+        }
 
         val textView = TextView(requireContext())
-        textView.text = "${item.title}\n${item.description}\nScade tra circa $minutesLeft min"
+        textView.text = "${item.title}\n${item.description}\n$statusText"
         textView.textSize = 16f
         textView.setTextColor(resources.getColor(R.color.black, null))
         textView.setBackgroundResource(R.drawable.bg_gray_button)
@@ -73,27 +116,5 @@ class RedZoneListFragment : Fragment(R.layout.fragment_red_zone_list) {
         textView.layoutParams = params
 
         return textView
-    }
-
-    private fun loadRedZones(): List<RedZoneItem> {
-        val text = requireContext()
-            .getSharedPreferences("shield_red_zones", Context.MODE_PRIVATE)
-            .getString("red_zones", "") ?: ""
-
-        if (text.isBlank()) return emptyList()
-
-        return text.split(";;").mapNotNull { row ->
-            val parts = row.split("|")
-            if (parts.size != 6) return@mapNotNull null
-
-            RedZoneItem(
-                title = parts[0],
-                description = parts[1],
-                latitude = parts[2].toDoubleOrNull() ?: return@mapNotNull null,
-                longitude = parts[3].toDoubleOrNull() ?: return@mapNotNull null,
-                createdAt = parts[4].toLongOrNull() ?: return@mapNotNull null,
-                expiresAt = parts[5].toLongOrNull() ?: return@mapNotNull null
-            )
-        }
     }
 }

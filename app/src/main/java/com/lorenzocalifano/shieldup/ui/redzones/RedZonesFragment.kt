@@ -2,14 +2,11 @@ package com.lorenzocalifano.shieldup.ui.redzones
 
 import android.Manifest
 import android.app.AlertDialog
-import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
@@ -24,26 +21,22 @@ import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 import com.lorenzocalifano.shieldup.R
+import com.lorenzocalifano.shieldup.data.FirebaseRepository
+import com.lorenzocalifano.shieldup.data.RedZoneDto
 
 class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
+    private val repository = FirebaseRepository()
+    private val currentUserId = "demo_user"
+
     private var googleMap: GoogleMap? = null
     private val anconaCenter = LatLng(43.6158, 13.5189)
-    private val redZones = mutableListOf<RedZoneItem>()
 
-    data class RedZoneItem(
-        val title: String,
-        val description: String,
-        val latitude: Double,
-        val longitude: Double,
-        val createdAt: Long,
-        val expiresAt: Long
-    )
+    private val redZoneDurationMs = 60L * 60L * 1000L
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        loadRedZones()
         setupMap()
         setupButtons(view)
     }
@@ -59,8 +52,8 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             map.uiSettings.isMyLocationButtonEnabled = false
 
             enableUserLocationIfAllowed()
-            showSavedRedZones()
             moveToCurrentLocation()
+            loadRedZonesFromFirebase()
         }
     }
 
@@ -87,6 +80,7 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
         val infoText = dialogView.findViewById<TextView>(R.id.txtLocationInfo)
 
         positionSwitch.isChecked = true
+        infoText.text = "La segnalazione verrà inserita nella tua posizione GPS attuale."
 
         positionSwitch.setOnCheckedChangeListener { _, isChecked ->
             infoText.text = if (isChecked) {
@@ -146,40 +140,70 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
                     googleMap?.cameraPosition?.target ?: anconaCenter
                 }
 
-                saveRedZone(title, description, position)
+                saveRedZoneToFirebase(title, description, position)
             }
             .addOnFailureListener {
                 val position = googleMap?.cameraPosition?.target ?: anconaCenter
-                saveRedZone(title, description, position)
+                saveRedZoneToFirebase(title, description, position)
             }
     }
 
     private fun saveUsingMapCenter(title: String, description: String) {
         val position = googleMap?.cameraPosition?.target ?: anconaCenter
-        saveRedZone(title, description, position)
+        saveRedZoneToFirebase(title, description, position)
     }
 
-    private fun saveRedZone(title: String, description: String, position: LatLng) {
-        val now = System.currentTimeMillis()
-        val expiresAt = now + 60L * 60L * 1000L
-
-        val redZone = RedZoneItem(
+    private fun saveRedZoneToFirebase(title: String, description: String, position: LatLng) {
+        val redZone = RedZoneDto(
             title = title,
             description = description,
             latitude = position.latitude,
             longitude = position.longitude,
-            createdAt = now,
-            expiresAt = expiresAt
+            createdAt = System.currentTimeMillis(),
+            userId = currentUserId,
+            type = "Pericolo"
         )
 
-        redZones.add(redZone)
-        saveRedZones()
-        addRedZoneToMap(redZone)
-
-        Toast.makeText(requireContext(), "Segnalazione salvata", Toast.LENGTH_SHORT).show()
+        repository.saveRedZone(
+            redZone = redZone,
+            onSuccess = {
+                Toast.makeText(requireContext(), "Segnalazione salvata", Toast.LENGTH_SHORT).show()
+                googleMap?.clear()
+                loadRedZonesFromFirebase()
+            },
+            onError = { exception ->
+                Toast.makeText(
+                    requireContext(),
+                    exception.message ?: "Errore salvataggio Red Zone",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        )
     }
 
-    private fun addRedZoneToMap(redZone: RedZoneItem) {
+    private fun loadRedZonesFromFirebase() {
+        repository.loadRedZones(
+            onSuccess = { zones ->
+                val now = System.currentTimeMillis()
+
+                googleMap?.clear()
+                enableUserLocationIfAllowed()
+
+                zones
+                    .filter { now - it.createdAt < redZoneDurationMs }
+                    .forEach { addRedZoneToMap(it) }
+            },
+            onError = { exception ->
+                Toast.makeText(
+                    requireContext(),
+                    exception.message ?: "Errore caricamento Red Zones",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        )
+    }
+
+    private fun addRedZoneToMap(redZone: RedZoneDto) {
         val map = googleMap ?: return
         val position = LatLng(redZone.latitude, redZone.longitude)
 
@@ -198,60 +222,6 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
                 .fillColor(0x33FF0000)
                 .strokeWidth(4f)
         )
-    }
-
-    private fun showSavedRedZones() {
-        val now = System.currentTimeMillis()
-
-        redZones
-            .filter { it.expiresAt > now }
-            .forEach { addRedZoneToMap(it) }
-    }
-
-    private fun saveRedZones() {
-        val text = redZones.joinToString(";;") {
-            "${it.title}|${it.description}|${it.latitude}|${it.longitude}|${it.createdAt}|${it.expiresAt}"
-        }
-
-        requireContext()
-            .getSharedPreferences("shield_red_zones", Context.MODE_PRIVATE)
-            .edit()
-            .putString("red_zones", text)
-            .apply()
-    }
-
-    private fun loadRedZones() {
-        val text = requireContext()
-            .getSharedPreferences("shield_red_zones", Context.MODE_PRIVATE)
-            .getString("red_zones", "") ?: ""
-
-        redZones.clear()
-
-        if (text.isBlank()) return
-
-        text.split(";;").forEach { row ->
-            val parts = row.split("|")
-
-            if (parts.size == 6) {
-                val latitude = parts[2].toDoubleOrNull()
-                val longitude = parts[3].toDoubleOrNull()
-                val createdAt = parts[4].toLongOrNull()
-                val expiresAt = parts[5].toLongOrNull()
-
-                if (latitude != null && longitude != null && createdAt != null && expiresAt != null) {
-                    redZones.add(
-                        RedZoneItem(
-                            title = parts[0],
-                            description = parts[1],
-                            latitude = latitude,
-                            longitude = longitude,
-                            createdAt = createdAt,
-                            expiresAt = expiresAt
-                        )
-                    )
-                }
-            }
-        }
     }
 
     private fun enableUserLocationIfAllowed() {
