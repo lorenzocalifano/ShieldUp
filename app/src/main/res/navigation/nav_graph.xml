@@ -41,4 +41,10 @@
         android:label="Emergenza"
         tools:layout="@layout/fragment_emergency_countdown" />
 
+    <fragment
+        android:id="@+id/redZoneListFragment"
+        android:name="com.lorenzocalifano.shieldup.ui.redzones.RedZoneListFragment"
+        android:label="Lista Red Zones"
+        tools:layout="@layout/fragment_red_zone_list" />
+
 </navigation>
