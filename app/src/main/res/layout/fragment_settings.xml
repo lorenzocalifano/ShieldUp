@@ -28,9 +28,9 @@
             android:layout_marginTop="24dp"
             android:background="@drawable/bg_gray_button"
             android:padding="18dp"
-            android:text="Lorenzo Califano\nUtente Standard"
+            android:text="Nome1 NomeLungo2 CognomeLungo3\nUtente Standard"
             android:textColor="@color/black"
-            android:textSize="18sp"
+            android:textSize="30sp"
             android:textStyle="bold" />
 
         <Button

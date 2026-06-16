@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "39607038769",
+    "project_id": "shieldup-9c36d",
+    "storage_bucket": "shieldup-9c36d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:39607038769:android:febb51df18a0119d817610",
+        "android_client_info": {
+          "package_name": "com.lorenzocalifano.shieldup"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBIFrCJMUwZwv-uJAIg7SXmfO-IU4qAaNM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

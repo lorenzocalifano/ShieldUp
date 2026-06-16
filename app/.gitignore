@@ -24,3 +24,5 @@ captures/
 
 # Logs
 *.log
+
+google-services.json
