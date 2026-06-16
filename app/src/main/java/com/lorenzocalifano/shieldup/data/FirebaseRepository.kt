@@ -7,6 +7,82 @@ class FirebaseRepository {
 
     private val db = FirebaseFirestore.getInstance()
 
+    fun registerUser(
+        name: String,
+        surname: String,
+        email: String,
+        password: String,
+        role: String,
+        onSuccess: (UserDto) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("users")
+            .whereEqualTo("email", email)
+            .get()
+            .addOnSuccessListener { result ->
+                if (!result.isEmpty) {
+                    onError(Exception("Email già registrata"))
+                    return@addOnSuccessListener
+                }
+
+                val user = hashMapOf(
+                    "name" to name,
+                    "surname" to surname,
+                    "email" to email,
+                    "password" to password,
+                    "role" to role,
+                    "createdAt" to System.currentTimeMillis()
+                )
+
+                db.collection("users")
+                    .add(user)
+                    .addOnSuccessListener { doc ->
+                        onSuccess(
+                            UserDto(
+                                id = doc.id,
+                                name = name,
+                                surname = surname,
+                                email = email,
+                                role = role
+                            )
+                        )
+                    }
+                    .addOnFailureListener { onError(it) }
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun loginUser(
+        email: String,
+        password: String,
+        onSuccess: (UserDto) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("users")
+            .whereEqualTo("email", email)
+            .whereEqualTo("password", password)
+            .get()
+            .addOnSuccessListener { result ->
+                if (result.isEmpty) {
+                    onError(Exception("Credenziali non valide"))
+                    return@addOnSuccessListener
+                }
+
+                val doc = result.documents.first()
+
+                onSuccess(
+                    UserDto(
+                        id = doc.id,
+                        name = doc.getString("name") ?: "",
+                        surname = doc.getString("surname") ?: "",
+                        email = doc.getString("email") ?: "",
+                        role = doc.getString("role") ?: "STANDARD"
+                    )
+                )
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
     fun saveEmergencyContact(
         userId: String,
         name: String,
@@ -111,6 +187,14 @@ class FirebaseRepository {
             .addOnFailureListener { onError(it) }
     }
 }
+
+data class UserDto(
+    val id: String,
+    val name: String,
+    val surname: String,
+    val email: String,
+    val role: String
+)
 
 data class EmergencyContactDto(
     val id: String,

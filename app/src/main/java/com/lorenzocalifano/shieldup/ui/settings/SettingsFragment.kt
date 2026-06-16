@@ -3,15 +3,22 @@ package com.lorenzocalifano.shieldup.ui.settings
 import android.os.Bundle
 import android.view.View
 import android.widget.Button
+import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import com.lorenzocalifano.shieldup.R
+import com.lorenzocalifano.shieldup.utils.SessionManager
 
 class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+        val sessionManager = SessionManager(requireContext())
+
+        val profileText = view.findViewById<TextView>(R.id.txtProfileInfo)
+
+        profileText.text = "${sessionManager.getName()}\n${sessionManager.getEmail()}\n${sessionManager.getRole()}"
 
         view.findViewById<Button>(R.id.btnEmergencyContacts).setOnClickListener {
             findNavController().navigate(R.id.contactsFragment)
@@ -26,7 +33,15 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         }
 
         view.findViewById<Button>(R.id.btnLogout).setOnClickListener {
-            Toast.makeText(requireContext(), "Logout simulato", Toast.LENGTH_SHORT).show()
+            sessionManager.clearSession()
+
+            findNavController().navigate(
+                R.id.loginFragment,
+                null,
+                NavOptions.Builder()
+                    .setPopUpTo(R.id.nav_graph, true)
+                    .build()
+            )
         }
     }
 }

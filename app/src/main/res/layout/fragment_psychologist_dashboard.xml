@@ -10,75 +10,70 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingStart="24dp"
-        android:paddingTop="82dp"
+        android:paddingTop="72dp"
         android:paddingEnd="24dp"
         android:paddingBottom="24dp">
 
         <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Profilo"
-            android:textColor="@color/black"
-            android:textSize="38sp"
-            android:textStyle="bold" />
-
-        <TextView
+            android:id="@+id/txtPsychologistTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp"
-            android:background="@drawable/bg_gray_button"
-            android:padding="18dp"
-            android:id="@+id/txtProfileInfo"
+            android:text="Dashboard Psicologo"
             android:textColor="@color/black"
             android:textSize="30sp"
             android:textStyle="bold" />
 
-        <Button
-            android:id="@+id/btnPersonalData"
+        <TextView
+            android:id="@+id/txtPsychologistInfo"
             android:layout_width="match_parent"
-            android:layout_height="58dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="18dp"
+            android:background="@drawable/bg_gray_button"
+            android:padding="18dp"
+            android:text="Psicologo"
+            android:textColor="@color/black"
+            android:textSize="17sp"
+            android:textStyle="bold" />
+
+        <Button
+            android:id="@+id/btnCreateAvailability"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
             android:layout_marginTop="28dp"
             android:background="@drawable/bg_purple_button"
-            android:gravity="center"
-            android:text="Modifica dati personali"
+            android:text="Apri disponibilità seduta"
             android:textColor="@color/white"
-            android:textSize="17sp"
             android:textStyle="bold"
             app:backgroundTint="@null" />
 
         <Button
-            android:id="@+id/btnEmergencyContacts"
+            android:id="@+id/btnToggleImmediate"
             android:layout_width="match_parent"
-            android:layout_height="58dp"
+            android:layout_height="60dp"
             android:layout_marginTop="14dp"
-            android:background="@drawable/bg_purple_button"
-            android:gravity="center"
-            android:text="Contatti di emergenza"
+            android:background="@drawable/bg_green_button"
+            android:text="Sono disponibile ora"
             android:textColor="@color/white"
-            android:textSize="17sp"
             android:textStyle="bold"
             app:backgroundTint="@null" />
 
         <Button
-            android:id="@+id/btnAssistance"
+            android:id="@+id/btnUrgentRequests"
             android:layout_width="match_parent"
-            android:layout_height="58dp"
+            android:layout_height="60dp"
             android:layout_marginTop="14dp"
-            android:background="@drawable/bg_purple_button"
-            android:gravity="center"
-            android:text="Invia richiesta assistenza"
-            android:textColor="@color/white"
-            android:textSize="17sp"
+            android:background="@drawable/bg_yellow_button"
+            android:text="Richieste urgenti in attesa"
+            android:textColor="@color/black"
             android:textStyle="bold"
             app:backgroundTint="@null" />
 
         <Button
-            android:id="@+id/btnLogout"
+            android:id="@+id/btnPsychologistLogout"
             android:layout_width="match_parent"
-            android:layout_height="58dp"
-            android:layout_marginTop="14dp"
+            android:layout_height="60dp"
+            android:layout_marginTop="28dp"
             android:background="@drawable/bg_gray_button"
-            android:gravity="center"
             android:text="Esci dall'account"
             android:textColor="@color/emergency_red"
             android:textStyle="bold"

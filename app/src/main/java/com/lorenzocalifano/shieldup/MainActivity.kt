@@ -5,17 +5,17 @@ import android.os.Bundle
 import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import com.lorenzocalifano.shieldup.databinding.ActivityMainBinding
+import com.lorenzocalifano.shieldup.utils.SessionManager
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
 
     private val permissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-            // Per ora non blocchiamo l'app se l'utente nega i permessi.
-        }
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -42,21 +42,58 @@ class MainActivity : AppCompatActivity() {
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
 
         val navController = navHostFragment.navController
+        val sessionManager = SessionManager(this)
+
+        navController.addOnDestinationChangedListener { _, destination, _ ->
+            binding.customBottomBar.visibility = when (destination.id) {
+                R.id.loginFragment,
+                R.id.registerFragment,
+                R.id.psychologistDashboardFragment -> View.GONE
+                else -> View.VISIBLE
+            }
+        }
+
+        if (sessionManager.isLogged()) {
+            val destination = if (sessionManager.getRole() == "PSYCHOLOGIST") {
+                R.id.psychologistDashboardFragment
+            } else {
+                R.id.homeFragment
+            }
+
+            navController.navigate(
+                destination,
+                null,
+                NavOptions.Builder()
+                    .setPopUpTo(R.id.loginFragment, true)
+                    .build()
+            )
+        }
 
         findViewById<View>(R.id.navHome).setOnClickListener {
-            navController.popBackStack(R.id.homeFragment, false)
+            navController.navigateToMainDestination(R.id.homeFragment)
         }
 
         findViewById<View>(R.id.navMap).setOnClickListener {
-            navController.navigate(R.id.redZonesFragment)
+            navController.navigateToMainDestination(R.id.redZonesFragment)
         }
 
         findViewById<View>(R.id.navSupport).setOnClickListener {
-            navController.navigate(R.id.supportFragment)
+            navController.navigateToMainDestination(R.id.supportFragment)
         }
 
         findViewById<View>(R.id.navProfile).setOnClickListener {
-            navController.navigate(R.id.settingsFragment)
+            navController.navigateToMainDestination(R.id.settingsFragment)
         }
+    }
+
+    private fun androidx.navigation.NavController.navigateToMainDestination(destinationId: Int) {
+        if (currentDestination?.id == destinationId) return
+
+        val options = NavOptions.Builder()
+            .setLaunchSingleTop(true)
+            .setPopUpTo(R.id.homeFragment, false)
+            .build()
+
+        navigate(destinationId, null, options)
     }
 }
