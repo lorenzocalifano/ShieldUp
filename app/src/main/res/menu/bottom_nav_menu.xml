@@ -3,22 +3,22 @@
 
     <item
         android:id="@+id/homeFragment"
-        android:icon="@android:drawable/ic_menu_view"
+        android:icon="@drawable/ic_nav_home"
         android:title="Home" />
 
     <item
         android:id="@+id/redZonesFragment"
-        android:icon="@android:drawable/ic_dialog_map"
-        android:title="Red Zones" />
+        android:icon="@drawable/ic_nav_map"
+        android:title="Mappa" />
 
     <item
         android:id="@+id/supportFragment"
-        android:icon="@android:drawable/ic_menu_call"
+        android:icon="@drawable/ic_nav_support"
         android:title="Supporto" />
 
     <item
         android:id="@+id/settingsFragment"
-        android:icon="@android:drawable/ic_menu_manage"
+        android:icon="@drawable/ic_nav_profile"
         android:title="Profilo" />
 
 </menu>

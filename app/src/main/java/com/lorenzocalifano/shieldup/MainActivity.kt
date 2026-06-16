@@ -2,10 +2,10 @@ package com.lorenzocalifano.shieldup
 
 import android.Manifest
 import android.os.Bundle
+import android.view.View
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.fragment.NavHostFragment
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.lorenzocalifano.shieldup.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
@@ -14,7 +14,7 @@ class MainActivity : AppCompatActivity() {
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
-            // Per ora non blocchiamo l'app se l'utente nega i permessi
+            // Per ora non blocchiamo l'app se l'utente nega i permessi.
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,7 +24,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         requestInitialPermissions()
-        setupBottomNavigation()
+        setupNavigation()
     }
 
     private fun requestInitialPermissions() {
@@ -37,37 +37,26 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    private fun setupBottomNavigation() {
+    private fun setupNavigation() {
         val navHostFragment = supportFragmentManager
             .findFragmentById(R.id.nav_host_fragment) as NavHostFragment
 
         val navController = navHostFragment.navController
-        val bottomNav: BottomNavigationView = binding.bottomNavigation
 
-        bottomNav.setOnItemSelectedListener { item ->
-            when (item.itemId) {
-                R.id.homeFragment -> {
-                    navController.popBackStack(R.id.homeFragment, false)
-                    true
-                }
+        findViewById<View>(R.id.navHome).setOnClickListener {
+            navController.popBackStack(R.id.homeFragment, false)
+        }
 
-                R.id.redZonesFragment -> {
-                    navController.navigate(R.id.redZonesFragment)
-                    true
-                }
+        findViewById<View>(R.id.navMap).setOnClickListener {
+            navController.navigate(R.id.redZonesFragment)
+        }
 
-                R.id.supportFragment -> {
-                    navController.navigate(R.id.supportFragment)
-                    true
-                }
+        findViewById<View>(R.id.navSupport).setOnClickListener {
+            navController.navigate(R.id.supportFragment)
+        }
 
-                R.id.settingsFragment -> {
-                    navController.navigate(R.id.settingsFragment)
-                    true
-                }
-
-                else -> false
-            }
+        findViewById<View>(R.id.navProfile).setOnClickListener {
+            navController.navigate(R.id.settingsFragment)
         }
     }
 }
