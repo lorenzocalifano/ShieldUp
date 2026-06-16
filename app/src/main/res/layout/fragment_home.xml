@@ -59,6 +59,19 @@
             app:backgroundTint="@null" />
 
         <Button
+            android:id="@+id/btnSafeRoute"
+            android:layout_width="match_parent"
+            android:layout_height="64dp"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_green_button"
+            android:gravity="center"
+            android:text="Seguimi a casa"
+            android:textColor="@color/white"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            app:backgroundTint="@null" />
+
+        <Button
             android:id="@+id/btnSupport"
             android:layout_width="match_parent"
             android:layout_height="64dp"
@@ -80,19 +93,6 @@
             android:gravity="center"
             android:text="Contatti di emergenza"
             android:textColor="@color/black"
-            android:textSize="20sp"
-            android:textStyle="bold"
-            app:backgroundTint="@null" />
-
-        <Button
-            android:id="@+id/btnSafeRoute"
-            android:layout_width="match_parent"
-            android:layout_height="64dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_purple_button"
-            android:gravity="center"
-            android:text="Seguimi a casa"
-            android:textColor="@color/white"
             android:textSize="20sp"
             android:textStyle="bold"
             app:backgroundTint="@null" />
