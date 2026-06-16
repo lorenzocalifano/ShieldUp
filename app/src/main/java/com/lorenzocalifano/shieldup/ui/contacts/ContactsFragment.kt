@@ -13,15 +13,14 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
 import com.lorenzocalifano.shieldup.R
+import com.lorenzocalifano.shieldup.data.EmergencyContactDto
+import com.lorenzocalifano.shieldup.data.FirebaseRepository
 
 class ContactsFragment : Fragment(R.layout.fragment_contacts) {
 
-    private val contacts = mutableListOf<ContactItem>()
-
-    data class ContactItem(
-        val name: String,
-        val phone: String
-    )
+    private val repository = FirebaseRepository()
+    private val currentUserId = "demo_user"
+    private val contacts = mutableListOf<EmergencyContactDto>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val backButton = view.findViewById<TextView>(R.id.btnBack)
@@ -30,12 +29,11 @@ class ContactsFragment : Fragment(R.layout.fragment_contacts) {
         val saveButton = view.findViewById<Button>(R.id.btnSaveContact)
         val contactsContainer = view.findViewById<LinearLayout>(R.id.contactsContainer)
 
-        loadContacts()
-        refreshContacts(contactsContainer)
-
         backButton.setOnClickListener {
             findNavController().popBackStack(R.id.homeFragment, false)
         }
+
+        loadContactsFromFirebase(contactsContainer)
 
         saveButton.setOnClickListener {
             val name = etName.text.toString().trim()
@@ -46,15 +44,37 @@ class ContactsFragment : Fragment(R.layout.fragment_contacts) {
                 return@setOnClickListener
             }
 
-            contacts.add(ContactItem(name, phone))
-            saveContacts()
-            refreshContacts(contactsContainer)
-
-            etName.text.clear()
-            etPhone.text.clear()
-
-            Toast.makeText(requireContext(), "Contatto salvato", Toast.LENGTH_SHORT).show()
+            repository.saveEmergencyContact(
+                userId = currentUserId,
+                name = name,
+                phone = phone,
+                onSuccess = {
+                    etName.text.clear()
+                    etPhone.text.clear()
+                    Toast.makeText(requireContext(), "Contatto salvato", Toast.LENGTH_SHORT).show()
+                    loadContactsFromFirebase(contactsContainer)
+                },
+                onError = {
+                    Toast.makeText(requireContext(), "Errore salvataggio contatto", Toast.LENGTH_SHORT).show()
+                }
+            )
         }
+    }
+
+    private fun loadContactsFromFirebase(container: LinearLayout) {
+        repository.loadEmergencyContacts(
+            userId = currentUserId,
+            onSuccess = { result ->
+                contacts.clear()
+                contacts.addAll(result)
+                saveContactsCacheForSms()
+                refreshContacts(container)
+            },
+            onError = {
+                Toast.makeText(requireContext(), "Errore caricamento contatti", Toast.LENGTH_SHORT).show()
+                refreshContacts(container)
+            }
+        )
     }
 
     private fun refreshContacts(container: LinearLayout) {
@@ -69,14 +89,13 @@ class ContactsFragment : Fragment(R.layout.fragment_contacts) {
             return
         }
 
-        contacts.forEachIndexed { index, contact ->
-            container.addView(createContactCard(contact, index, container))
+        contacts.forEach { contact ->
+            container.addView(createContactCard(contact, container))
         }
     }
 
     private fun createContactCard(
-        contact: ContactItem,
-        index: Int,
+        contact: EmergencyContactDto,
         container: LinearLayout
     ): LinearLayout {
         val card = LinearLayout(requireContext())
@@ -94,13 +113,11 @@ class ContactsFragment : Fragment(R.layout.fragment_contacts) {
 
         val textColumn = LinearLayout(requireContext())
         textColumn.orientation = LinearLayout.VERTICAL
-
-        val textParams = LinearLayout.LayoutParams(
+        textColumn.layoutParams = LinearLayout.LayoutParams(
             0,
             LinearLayout.LayoutParams.WRAP_CONTENT,
             1f
         )
-        textColumn.layoutParams = textParams
 
         val nameText = TextView(requireContext())
         nameText.text = contact.name
@@ -117,51 +134,35 @@ class ContactsFragment : Fragment(R.layout.fragment_contacts) {
         textColumn.addView(nameText)
         textColumn.addView(phoneText)
 
-        val deleteButton = TextView(requireContext())
+        val deleteText = TextView(requireContext())
+        deleteText.text = "Elimina"
+        deleteText.textSize = 13f
+        deleteText.gravity = Gravity.CENTER
+        deleteText.setTextColor(resources.getColor(R.color.emergency_red, null))
+        deleteText.setTypeface(null, Typeface.BOLD)
+        deleteText.setPadding(20, 10, 0, 10)
 
-        deleteButton.text = "Elimina"
-        deleteButton.textSize = 13f
-        deleteButton.gravity = Gravity.CENTER
-        deleteButton.setTextColor(resources.getColor(R.color.emergency_red, null))
-        deleteButton.setTypeface(null, Typeface.BOLD)
-        deleteButton.setPadding(20, 10, 20, 10)
-
-        val deleteParams = LinearLayout.LayoutParams(
-            LinearLayout.LayoutParams.WRAP_CONTENT,
-            LinearLayout.LayoutParams.WRAP_CONTENT
-        )
-        
-        deleteButton.layoutParams = deleteParams
-        deleteButton.setOnClickListener {
-            contacts.removeAt(index)
-            saveContacts()
-            refreshContacts(container)
+        deleteText.setOnClickListener {
+            repository.deleteEmergencyContact(
+                userId = currentUserId,
+                contactId = contact.id,
+                onSuccess = {
+                    Toast.makeText(requireContext(), "Contatto eliminato", Toast.LENGTH_SHORT).show()
+                    loadContactsFromFirebase(container)
+                },
+                onError = {
+                    Toast.makeText(requireContext(), "Errore eliminazione contatto", Toast.LENGTH_SHORT).show()
+                }
+            )
         }
 
         card.addView(textColumn)
-        card.addView(deleteButton)
+        card.addView(deleteText)
 
         return card
     }
 
-    private fun loadContacts() {
-        val savedText = requireContext()
-            .getSharedPreferences("shield_contacts", Context.MODE_PRIVATE)
-            .getString("contacts", "") ?: ""
-
-        contacts.clear()
-
-        if (savedText.isBlank()) return
-
-        savedText.split(";;").forEach { row ->
-            val parts = row.split(" - ")
-            if (parts.size >= 2) {
-                contacts.add(ContactItem(parts[0].trim(), parts[1].trim()))
-            }
-        }
-    }
-
-    private fun saveContacts() {
+    private fun saveContactsCacheForSms() {
         val text = contacts.joinToString(";;") {
             "${it.name} - ${it.phone}"
         }
