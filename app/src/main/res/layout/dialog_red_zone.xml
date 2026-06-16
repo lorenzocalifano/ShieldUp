@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="22dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Nuova Red Zone"
+        android:textColor="@color/black"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/etRedZoneTitle"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="18dp"
+        android:background="@drawable/bg_input"
+        android:hint="Titolo segnalazione"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp" />
+
+    <EditText
+        android:id="@+id/etRedZoneDescription"
+        android:layout_width="match_parent"
+        android:layout_height="86dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_input"
+        android:gravity="top"
+        android:hint="Descrizione"
+        android:padding="18dp" />
+
+    <Switch
+        android:id="@+id/switchCurrentLocation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
+        android:text="Usa la mia posizione attuale"
+        android:textColor="@color/black"
+        android:textSize="15sp" />
+
+    <TextView
+        android:id="@+id/txtLocationInfo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Se disattivi questa opzione, la segnalazione verrà inserita nel centro della mappa."
+        android:textColor="#555555"
+        android:textSize="13sp" />
+
+</LinearLayout>

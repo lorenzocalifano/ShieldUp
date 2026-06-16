@@ -1,10 +1,13 @@
 package com.lorenzocalifano.shieldup.ui.contacts
 
 import android.content.Context
+import android.graphics.Typeface
 import android.os.Bundle
+import android.view.Gravity
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
@@ -13,19 +16,22 @@ import com.lorenzocalifano.shieldup.R
 
 class ContactsFragment : Fragment(R.layout.fragment_contacts) {
 
-    private val contacts = mutableListOf<String>()
+    private val contacts = mutableListOf<ContactItem>()
+
+    data class ContactItem(
+        val name: String,
+        val phone: String
+    )
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
         val backButton = view.findViewById<TextView>(R.id.btnBack)
         val etName = view.findViewById<EditText>(R.id.etName)
         val etPhone = view.findViewById<EditText>(R.id.etPhone)
-        val txtContacts = view.findViewById<TextView>(R.id.txtContacts)
         val saveButton = view.findViewById<Button>(R.id.btnSaveContact)
+        val contactsContainer = view.findViewById<LinearLayout>(R.id.contactsContainer)
 
         loadContacts()
-        updateContactsText(txtContacts)
+        refreshContacts(contactsContainer)
 
         backButton.setOnClickListener {
             findNavController().popBackStack(R.id.homeFragment, false)
@@ -40,9 +46,9 @@ class ContactsFragment : Fragment(R.layout.fragment_contacts) {
                 return@setOnClickListener
             }
 
-            contacts.add("$name - $phone")
+            contacts.add(ContactItem(name, phone))
             saveContacts()
-            updateContactsText(txtContacts)
+            refreshContacts(contactsContainer)
 
             etName.text.clear()
             etPhone.text.clear()
@@ -51,29 +57,119 @@ class ContactsFragment : Fragment(R.layout.fragment_contacts) {
         }
     }
 
+    private fun refreshContacts(container: LinearLayout) {
+        container.removeAllViews()
+
+        if (contacts.isEmpty()) {
+            val emptyText = TextView(requireContext())
+            emptyText.text = "Nessun contatto salvato"
+            emptyText.textSize = 16f
+            emptyText.setPadding(0, 20, 0, 0)
+            container.addView(emptyText)
+            return
+        }
+
+        contacts.forEachIndexed { index, contact ->
+            container.addView(createContactCard(contact, index, container))
+        }
+    }
+
+    private fun createContactCard(
+        contact: ContactItem,
+        index: Int,
+        container: LinearLayout
+    ): LinearLayout {
+        val card = LinearLayout(requireContext())
+        card.orientation = LinearLayout.HORIZONTAL
+        card.gravity = Gravity.CENTER_VERTICAL
+        card.setBackgroundResource(R.drawable.bg_gray_button)
+        card.setPadding(22, 18, 18, 18)
+
+        val cardParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        cardParams.setMargins(0, 14, 0, 0)
+        card.layoutParams = cardParams
+
+        val textColumn = LinearLayout(requireContext())
+        textColumn.orientation = LinearLayout.VERTICAL
+
+        val textParams = LinearLayout.LayoutParams(
+            0,
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            1f
+        )
+        textColumn.layoutParams = textParams
+
+        val nameText = TextView(requireContext())
+        nameText.text = contact.name
+        nameText.textSize = 18f
+        nameText.setTextColor(resources.getColor(R.color.black, null))
+        nameText.setTypeface(null, Typeface.BOLD)
+
+        val phoneText = TextView(requireContext())
+        phoneText.text = contact.phone
+        phoneText.textSize = 15f
+        phoneText.setTextColor(resources.getColor(R.color.black, null))
+        phoneText.setPadding(0, 8, 0, 0)
+
+        textColumn.addView(nameText)
+        textColumn.addView(phoneText)
+
+        val deleteButton = TextView(requireContext())
+
+        deleteButton.text = "Elimina"
+        deleteButton.textSize = 13f
+        deleteButton.gravity = Gravity.CENTER
+        deleteButton.setTextColor(resources.getColor(R.color.emergency_red, null))
+        deleteButton.setTypeface(null, Typeface.BOLD)
+        deleteButton.setPadding(20, 10, 20, 10)
+
+        val deleteParams = LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.WRAP_CONTENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT
+        )
+        
+        deleteButton.layoutParams = deleteParams
+        deleteButton.setOnClickListener {
+            contacts.removeAt(index)
+            saveContacts()
+            refreshContacts(container)
+        }
+
+        card.addView(textColumn)
+        card.addView(deleteButton)
+
+        return card
+    }
+
     private fun loadContacts() {
-        val sharedPref = requireContext().getSharedPreferences("shield_contacts", Context.MODE_PRIVATE)
-        val savedText = sharedPref.getString("contacts", "") ?: ""
+        val savedText = requireContext()
+            .getSharedPreferences("shield_contacts", Context.MODE_PRIVATE)
+            .getString("contacts", "") ?: ""
 
         contacts.clear()
 
-        if (savedText.isNotBlank()) {
-            contacts.addAll(savedText.split(";;").filter { it.isNotBlank() })
+        if (savedText.isBlank()) return
+
+        savedText.split(";;").forEach { row ->
+            val parts = row.split(" - ")
+            if (parts.size >= 2) {
+                contacts.add(ContactItem(parts[0].trim(), parts[1].trim()))
+            }
         }
     }
 
     private fun saveContacts() {
-        val sharedPref = requireContext().getSharedPreferences("shield_contacts", Context.MODE_PRIVATE)
-        sharedPref.edit()
-            .putString("contacts", contacts.joinToString(";;"))
-            .apply()
-    }
-
-    private fun updateContactsText(textView: TextView) {
-        textView.text = if (contacts.isEmpty()) {
-            "Nessun contatto salvato"
-        } else {
-            contacts.joinToString("\n\n")
+        val text = contacts.joinToString(";;") {
+            "${it.name} - ${it.phone}"
         }
+
+        requireContext()
+            .getSharedPreferences("shield_contacts", Context.MODE_PRIVATE)
+            .edit()
+            .putString("contacts", text)
+            .apply()
     }
 }

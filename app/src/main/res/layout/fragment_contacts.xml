@@ -41,22 +41,37 @@
                 android:textColor="@color/black"
                 android:textSize="22sp"
                 android:textStyle="bold" />
-
         </LinearLayout>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="AGGIUNGI NUOVO CONTATTO"
+            android:textColor="@color/shield_purple"
+            android:textSize="16sp"
+            android:textStyle="bold" />
 
         <EditText
             android:id="@+id/etName"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
-            android:layout_marginTop="24dp"
-            android:hint="Nome contatto" />
+            android:layout_height="58dp"
+            android:layout_marginTop="18dp"
+            android:hint="Nome e cognome"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:background="@drawable/bg_input"
+            android:inputType="textPersonName" />
 
         <EditText
             android:id="@+id/etPhone"
             android:layout_width="match_parent"
-            android:layout_height="56dp"
+            android:layout_height="58dp"
             android:layout_marginTop="12dp"
-            android:hint="Numero telefono"
+            android:hint="Numero di telefono"
+            android:paddingStart="18dp"
+            android:paddingEnd="18dp"
+            android:background="@drawable/bg_input"
             android:inputType="phone" />
 
         <Button
@@ -65,17 +80,32 @@
             android:layout_height="60dp"
             android:layout_marginTop="16dp"
             android:background="@drawable/bg_purple_button"
+            android:gravity="center"
             android:text="Salva contatto"
             android:textColor="@color/white"
+            android:textStyle="bold"
             app:backgroundTint="@null" />
 
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="30dp"
+            android:layout_marginBottom="20dp"
+            android:background="#CCCCCC" />
+
         <TextView
-            android:id="@+id/txtContacts"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="32dp"
-            android:text="Nessun contatto salvato"
-            android:textSize="18sp" />
+            android:text="CONTATTI SALVATI"
+            android:textColor="@color/shield_purple"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/contactsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical" />
 
     </LinearLayout>
 

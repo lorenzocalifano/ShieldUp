@@ -79,31 +79,14 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
     }
 
     private fun showAddRedZoneDialog() {
-        val container = LinearLayout(requireContext())
-        container.orientation = LinearLayout.VERTICAL
-        container.setPadding(48, 24, 48, 8)
+        val dialogView = layoutInflater.inflate(R.layout.dialog_red_zone, null)
 
-        val titleInput = EditText(requireContext())
-        titleInput.hint = "Titolo segnalazione"
-        titleInput.textSize = 16f
+        val titleInput = dialogView.findViewById<EditText>(R.id.etRedZoneTitle)
+        val descriptionInput = dialogView.findViewById<EditText>(R.id.etRedZoneDescription)
+        val positionSwitch = dialogView.findViewById<Switch>(R.id.switchCurrentLocation)
+        val infoText = dialogView.findViewById<TextView>(R.id.txtLocationInfo)
 
-        val descriptionInput = EditText(requireContext())
-        descriptionInput.hint = "Descrizione"
-        descriptionInput.textSize = 16f
-        descriptionInput.minLines = 2
-
-        val positionSwitch = Switch(requireContext())
-        positionSwitch.text = "Usa la mia posizione attuale"
-        positionSwitch.textSize = 16f
         positionSwitch.isChecked = true
-        positionSwitch.setPadding(0, 24, 0, 8)
-
-        val infoText = TextView(requireContext())
-        infoText.text =
-            "Se disattivi questa opzione, la segnalazione verrà inserita nel centro della mappa. Sposta la mappa sul punto da segnalare prima di salvare."
-        infoText.textSize = 14f
-        infoText.setTextColor(Color.DKGRAY)
-        infoText.setPadding(0, 8, 0, 0)
 
         positionSwitch.setOnCheckedChangeListener { _, isChecked ->
             infoText.text = if (isChecked) {
@@ -113,43 +96,33 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             }
         }
 
-        container.addView(titleInput)
-        container.addView(descriptionInput)
-        container.addView(positionSwitch)
-        container.addView(infoText)
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Nuova Red Zone")
-            .setView(container)
+        val dialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
             .setNegativeButton("Annulla", null)
             .setPositiveButton("Salva", null)
             .create()
-            .apply {
-                setOnShowListener {
-                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                        val title = titleInput.text.toString().trim()
-                        val description = descriptionInput.text.toString().trim()
 
-                        if (title.isEmpty() || description.isEmpty()) {
-                            Toast.makeText(
-                                requireContext(),
-                                "Compila tutti i campi",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            return@setOnClickListener
-                        }
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val title = titleInput.text.toString().trim()
+                val description = descriptionInput.text.toString().trim()
 
-                        if (positionSwitch.isChecked) {
-                            saveUsingCurrentPosition(title, description)
-                        } else {
-                            saveUsingMapCenter(title, description)
-                        }
-
-                        dismiss()
-                    }
+                if (title.isEmpty() || description.isEmpty()) {
+                    Toast.makeText(requireContext(), "Compila tutti i campi", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
                 }
+
+                if (positionSwitch.isChecked) {
+                    saveUsingCurrentPosition(title, description)
+                } else {
+                    saveUsingMapCenter(title, description)
+                }
+
+                dialog.dismiss()
             }
-            .show()
+        }
+
+        dialog.show()
     }
 
     private fun saveUsingCurrentPosition(title: String, description: String) {
