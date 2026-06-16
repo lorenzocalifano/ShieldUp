@@ -35,4 +35,10 @@
         android:label="Impostazioni"
         tools:layout="@layout/fragment_settings" />
 
+    <fragment
+        android:id="@+id/emergencyCountdownFragment"
+        android:name="com.lorenzocalifano.shieldup.ui.emergency.EmergencyCountdownFragment"
+        android:label="Emergenza"
+        tools:layout="@layout/fragment_emergency_countdown" />
+
 </navigation>

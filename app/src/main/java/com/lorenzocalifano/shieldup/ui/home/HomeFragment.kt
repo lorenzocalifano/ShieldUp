@@ -23,5 +23,9 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         view.findViewById<Button>(R.id.btnReport).setOnClickListener {
             findNavController().navigate(R.id.redZonesFragment)
         }
+
+        view.findViewById<Button>(R.id.btnEmergency).setOnClickListener {
+            findNavController().navigate(R.id.emergencyCountdownFragment)
+        }
     }
 }
