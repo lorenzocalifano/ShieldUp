@@ -6,6 +6,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import com.lorenzocalifano.shieldup.R
 import com.lorenzocalifano.shieldup.data.FirebaseRepository
@@ -38,10 +39,21 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
             val email = emailInput.text.toString().trim()
             val password = passwordInput.text.toString().trim()
 
-            if (email.isEmpty() || password.isEmpty()) {
-                Toast.makeText(requireContext(), "Inserisci email e password", Toast.LENGTH_SHORT).show()
+            emailInput.error = null
+            passwordInput.error = null
+
+            if (email.isEmpty()) {
+                emailInput.error = "Inserisci email"
                 return@setOnClickListener
             }
+
+            if (password.isEmpty()) {
+                passwordInput.error = "Inserisci password"
+                return@setOnClickListener
+            }
+
+            loginButton.isEnabled = false
+            loginButton.text = "Accesso..."
 
             repository.loginUser(
                 email = email,
@@ -54,9 +66,13 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                         role = user.role
                     )
 
+                    Toast.makeText(requireContext(), "Accesso effettuato", Toast.LENGTH_SHORT).show()
                     navigateByRole(user.role)
                 },
                 onError = { exception ->
+                    loginButton.isEnabled = true
+                    loginButton.text = "Accedi"
+
                     Toast.makeText(
                         requireContext(),
                         exception.message ?: "Errore login",
@@ -74,6 +90,12 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
             R.id.homeFragment
         }
 
-        findNavController().navigate(destination)
+        findNavController().navigate(
+            destination,
+            null,
+            NavOptions.Builder()
+                .setPopUpTo(R.id.loginFragment, true)
+                .build()
+        )
     }
 }

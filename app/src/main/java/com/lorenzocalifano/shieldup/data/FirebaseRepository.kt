@@ -16,20 +16,23 @@ class FirebaseRepository {
         onSuccess: (UserDto) -> Unit,
         onError: (Exception) -> Unit
     ) {
+        val normalizedEmail = email.trim().lowercase()
+        val cleanPassword = password.trim()
+
         db.collection("users")
-            .whereEqualTo("email", email)
+            .whereEqualTo("email", normalizedEmail)
             .get()
             .addOnSuccessListener { result ->
                 if (!result.isEmpty) {
-                    onError(Exception("Email già registrata"))
+                    onError(Exception("Questa email è già registrata"))
                     return@addOnSuccessListener
                 }
 
                 val user = hashMapOf(
-                    "name" to name,
-                    "surname" to surname,
-                    "email" to email,
-                    "password" to password,
+                    "name" to name.trim(),
+                    "surname" to surname.trim(),
+                    "email" to normalizedEmail,
+                    "password" to cleanPassword,
                     "role" to role,
                     "createdAt" to System.currentTimeMillis()
                 )
@@ -37,11 +40,23 @@ class FirebaseRepository {
                 db.collection("users")
                     .add(user)
                     .addOnSuccessListener { doc ->
-                        onSuccess(UserDto(doc.id, name, surname, email, role))
+                        onSuccess(
+                            UserDto(
+                                id = doc.id,
+                                name = name.trim(),
+                                surname = surname.trim(),
+                                email = normalizedEmail,
+                                role = role
+                            )
+                        )
                     }
-                    .addOnFailureListener { onError(it) }
+                    .addOnFailureListener {
+                        onError(Exception("Errore durante la registrazione"))
+                    }
             }
-            .addOnFailureListener { onError(it) }
+            .addOnFailureListener {
+                onError(Exception("Errore di connessione a Firebase"))
+            }
     }
 
     fun loginUser(
@@ -50,29 +65,39 @@ class FirebaseRepository {
         onSuccess: (UserDto) -> Unit,
         onError: (Exception) -> Unit
     ) {
+        val normalizedEmail = email.trim().lowercase()
+        val cleanPassword = password.trim()
+
         db.collection("users")
-            .whereEqualTo("email", email)
-            .whereEqualTo("password", password)
+            .whereEqualTo("email", normalizedEmail)
             .get()
             .addOnSuccessListener { result ->
                 if (result.isEmpty) {
-                    onError(Exception("Credenziali non valide"))
+                    onError(Exception("Utente non trovato"))
                     return@addOnSuccessListener
                 }
 
                 val doc = result.documents.first()
+                val savedPassword = doc.getString("password") ?: ""
+
+                if (savedPassword != cleanPassword) {
+                    onError(Exception("Password non corretta"))
+                    return@addOnSuccessListener
+                }
 
                 onSuccess(
                     UserDto(
                         id = doc.id,
                         name = doc.getString("name") ?: "",
                         surname = doc.getString("surname") ?: "",
-                        email = doc.getString("email") ?: "",
+                        email = doc.getString("email") ?: normalizedEmail,
                         role = doc.getString("role") ?: "STANDARD"
                     )
                 )
             }
-            .addOnFailureListener { onError(it) }
+            .addOnFailureListener {
+                onError(Exception("Errore di connessione a Firebase"))
+            }
     }
 
     fun saveEmergencyContact(

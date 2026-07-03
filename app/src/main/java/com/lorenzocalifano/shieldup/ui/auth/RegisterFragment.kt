@@ -1,6 +1,7 @@
 package com.lorenzocalifano.shieldup.ui.auth
 
 import android.os.Bundle
+import android.util.Patterns
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
@@ -8,6 +9,7 @@ import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
 import com.lorenzocalifano.shieldup.R
 import com.lorenzocalifano.shieldup.data.FirebaseRepository
@@ -41,10 +43,14 @@ class RegisterFragment : Fragment(R.layout.fragment_register) {
             val password = passwordInput.text.toString().trim()
             val role = if (psychologistRadio.isChecked) "PSYCHOLOGIST" else "STANDARD"
 
-            if (name.isEmpty() || surname.isEmpty() || email.isEmpty() || password.isEmpty()) {
-                Toast.makeText(requireContext(), "Compila tutti i campi", Toast.LENGTH_SHORT).show()
+            clearErrors(nameInput, surnameInput, emailInput, passwordInput)
+
+            if (!validateInputs(name, surname, email, password, nameInput, surnameInput, emailInput, passwordInput)) {
                 return@setOnClickListener
             }
+
+            registerButton.isEnabled = false
+            registerButton.text = "Registrazione..."
 
             repository.registerUser(
                 name = name,
@@ -60,10 +66,26 @@ class RegisterFragment : Fragment(R.layout.fragment_register) {
                         role = user.role
                     )
 
-                    Toast.makeText(requireContext(), "Account creato", Toast.LENGTH_SHORT).show()
-                    navigateByRole(user.role)
+                    Toast.makeText(requireContext(), "Account creato correttamente", Toast.LENGTH_SHORT).show()
+
+                    val destination = if (user.role == "PSYCHOLOGIST") {
+                        R.id.psychologistDashboardFragment
+                    } else {
+                        R.id.homeFragment
+                    }
+
+                    findNavController().navigate(
+                        destination,
+                        null,
+                        NavOptions.Builder()
+                            .setPopUpTo(R.id.loginFragment, true)
+                            .build()
+                    )
                 },
                 onError = { exception ->
+                    registerButton.isEnabled = true
+                    registerButton.text = "Registrati"
+
                     Toast.makeText(
                         requireContext(),
                         exception.message ?: "Errore registrazione",
@@ -74,13 +96,55 @@ class RegisterFragment : Fragment(R.layout.fragment_register) {
         }
     }
 
-    private fun navigateByRole(role: String) {
-        val destination = if (role == "PSYCHOLOGIST") {
-            R.id.psychologistDashboardFragment
-        } else {
-            R.id.homeFragment
+    private fun validateInputs(
+        name: String,
+        surname: String,
+        email: String,
+        password: String,
+        nameInput: EditText,
+        surnameInput: EditText,
+        emailInput: EditText,
+        passwordInput: EditText
+    ): Boolean {
+        if (name.isEmpty()) {
+            nameInput.error = "Inserisci nome"
+            return false
         }
 
-        findNavController().navigate(destination)
+        if (surname.isEmpty()) {
+            surnameInput.error = "Inserisci cognome"
+            return false
+        }
+
+        if (email.isEmpty()) {
+            emailInput.error = "Inserisci email"
+            return false
+        }
+
+        if (!Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            emailInput.error = "Email non valida"
+            return false
+        }
+
+        if (password.length < 8) {
+            passwordInput.error = "La password deve avere almeno 8 caratteri"
+            return false
+        }
+
+        if (!password.any { it.isUpperCase() }) {
+            passwordInput.error = "Inserisci almeno una lettera maiuscola"
+            return false
+        }
+
+        if (!password.any { it.isDigit() }) {
+            passwordInput.error = "Inserisci almeno un numero"
+            return false
+        }
+
+        return true
+    }
+
+    private fun clearErrors(vararg inputs: EditText) {
+        inputs.forEach { it.error = null }
     }
 }
