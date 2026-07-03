@@ -9,6 +9,8 @@ import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import com.lorenzocalifano.shieldup.databinding.ActivityMainBinding
 import com.lorenzocalifano.shieldup.utils.SessionManager
+import com.google.android.gms.maps.MapsInitializer
+import com.google.android.gms.maps.OnMapsSdkInitializedCallback
 
 class MainActivity : AppCompatActivity() {
 
@@ -20,9 +22,15 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        MapsInitializer.initialize(
+            applicationContext,
+            MapsInitializer.Renderer.LEGACY
+        ) { renderer ->
+            android.util.Log.d("SHIELDUP_MAP", "Renderer Maps usato: $renderer")
+        }
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
         requestInitialPermissions()
         setupNavigation()
     }

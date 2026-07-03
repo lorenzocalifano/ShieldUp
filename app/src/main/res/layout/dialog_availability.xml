@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="22dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Nuova disponibilità"
+        android:textColor="@color/black"
+        android:textSize="22sp"
+        android:textStyle="bold" />
+
+    <EditText
+        android:id="@+id/etAvailabilityDate"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="18dp"
+        android:background="@drawable/bg_input"
+        android:hint="Data, es. 20/06/2026"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp" />
+
+    <EditText
+        android:id="@+id/etAvailabilityTime"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="12dp"
+        android:background="@drawable/bg_input"
+        android:hint="Ora, es. 15:30"
+        android:paddingStart="18dp"
+        android:paddingEnd="18dp" />
+
+    <RadioGroup
+        android:id="@+id/typeGroup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp"
+        android:orientation="horizontal">
+
+        <RadioButton
+            android:id="@+id/radioChat"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="Chat" />
+
+        <RadioButton
+            android:id="@+id/radioVideo"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:text="Videochat" />
+
+    </RadioGroup>
+
+</LinearLayout>

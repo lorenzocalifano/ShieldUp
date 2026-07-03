@@ -16,10 +16,12 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
     private val repository = FirebaseRepository()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
         val sessionManager = SessionManager(requireContext())
 
         if (sessionManager.isLogged()) {
-            findNavController().navigate(R.id.homeFragment)
+            navigateByRole(sessionManager.getRole())
             return
         }
 
@@ -52,7 +54,7 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                         role = user.role
                     )
 
-                    findNavController().navigate(R.id.homeFragment)
+                    navigateByRole(user.role)
                 },
                 onError = { exception ->
                     Toast.makeText(
@@ -63,5 +65,15 @@ class LoginFragment : Fragment(R.layout.fragment_login) {
                 }
             )
         }
+    }
+
+    private fun navigateByRole(role: String) {
+        val destination = if (role == "PSYCHOLOGIST") {
+            R.id.psychologistDashboardFragment
+        } else {
+            R.id.homeFragment
+        }
+
+        findNavController().navigate(destination)
     }
 }

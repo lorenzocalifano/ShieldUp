@@ -37,15 +37,7 @@ class FirebaseRepository {
                 db.collection("users")
                     .add(user)
                     .addOnSuccessListener { doc ->
-                        onSuccess(
-                            UserDto(
-                                id = doc.id,
-                                name = name,
-                                surname = surname,
-                                email = email,
-                                role = role
-                            )
-                        )
+                        onSuccess(UserDto(doc.id, name, surname, email, role))
                     }
                     .addOnFailureListener { onError(it) }
             }
@@ -186,6 +178,182 @@ class FirebaseRepository {
             }
             .addOnFailureListener { onError(it) }
     }
+
+    fun setPsychologistImmediateAvailability(
+        psychologistId: String,
+        psychologistName: String,
+        psychologistEmail: String,
+        available: Boolean,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val data = mapOf(
+            "psychologistId" to psychologistId,
+            "name" to psychologistName,
+            "email" to psychologistEmail,
+            "availableNow" to available,
+            "updatedAt" to System.currentTimeMillis()
+        )
+
+        db.collection("psychologistStatus")
+            .document(psychologistId)
+            .set(data)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun loadPsychologists(
+        onSuccess: (List<UserDto>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("users")
+            .whereEqualTo("role", "PSYCHOLOGIST")
+            .get()
+            .addOnSuccessListener { result ->
+                val psychologists = result.documents.mapNotNull { doc ->
+                    UserDto(
+                        id = doc.id,
+                        name = doc.getString("name") ?: return@mapNotNull null,
+                        surname = doc.getString("surname") ?: "",
+                        email = doc.getString("email") ?: "",
+                        role = doc.getString("role") ?: "PSYCHOLOGIST"
+                    )
+                }
+                onSuccess(psychologists)
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun savePsychologistAvailability(
+        availability: AvailabilityDto,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val data = hashMapOf(
+            "psychologistId" to availability.psychologistId,
+            "psychologistName" to availability.psychologistName,
+            "date" to availability.date,
+            "time" to availability.time,
+            "type" to availability.type,
+            "booked" to availability.booked,
+            "createdAt" to availability.createdAt
+        )
+
+        db.collection("availabilities")
+            .add(data)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun loadAvailableSlots(
+        onSuccess: (List<AvailabilityDto>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("availabilities")
+            .whereEqualTo("booked", false)
+            .get()
+            .addOnSuccessListener { result ->
+                val slots = result.documents.mapNotNull { doc ->
+                    AvailabilityDto(
+                        id = doc.id,
+                        psychologistId = doc.getString("psychologistId") ?: return@mapNotNull null,
+                        psychologistName = doc.getString("psychologistName") ?: "",
+                        date = doc.getString("date") ?: "",
+                        time = doc.getString("time") ?: "",
+                        type = doc.getString("type") ?: "Chat",
+                        booked = doc.getBoolean("booked") ?: false,
+                        createdAt = doc.getLong("createdAt") ?: 0L
+                    )
+                }.sortedByDescending { it.createdAt }
+
+                onSuccess(slots)
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun bookAvailability(
+        availabilityId: String,
+        userId: String,
+        userName: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("availabilities")
+            .document(availabilityId)
+            .update(
+                mapOf(
+                    "booked" to true,
+                    "bookedByUserId" to userId,
+                    "bookedByUserName" to userName,
+                    "bookedAt" to System.currentTimeMillis()
+                )
+            )
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun createUrgentPsychologicalRequest(
+        userId: String,
+        userName: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val data = hashMapOf(
+            "userId" to userId,
+            "userName" to userName,
+            "status" to "WAITING",
+            "createdAt" to System.currentTimeMillis()
+        )
+
+        db.collection("urgentPsychologicalRequests")
+            .add(data)
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun loadPendingUrgentRequests(
+        onSuccess: (List<UrgentRequestDto>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("urgentPsychologicalRequests")
+            .whereEqualTo("status", "WAITING")
+            .get()
+            .addOnSuccessListener { result ->
+                val requests = result.documents.mapNotNull { doc ->
+                    UrgentRequestDto(
+                        id = doc.id,
+                        userId = doc.getString("userId") ?: return@mapNotNull null,
+                        userName = doc.getString("userName") ?: "Utente",
+                        status = doc.getString("status") ?: "WAITING",
+                        createdAt = doc.getLong("createdAt") ?: 0L
+                    )
+                }.sortedByDescending { it.createdAt }
+
+                onSuccess(requests)
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun acceptUrgentRequest(
+        requestId: String,
+        psychologistId: String,
+        psychologistName: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("urgentPsychologicalRequests")
+            .document(requestId)
+            .update(
+                mapOf(
+                    "status" to "ACCEPTED",
+                    "psychologistId" to psychologistId,
+                    "psychologistName" to psychologistName,
+                    "acceptedAt" to System.currentTimeMillis()
+                )
+            )
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
 }
 
 data class UserDto(
@@ -211,4 +379,23 @@ data class RedZoneDto(
     val createdAt: Long,
     val userId: String,
     val type: String = "Pericolo"
+)
+
+data class AvailabilityDto(
+    val id: String = "",
+    val psychologistId: String,
+    val psychologistName: String,
+    val date: String,
+    val time: String,
+    val type: String,
+    val booked: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class UrgentRequestDto(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val status: String,
+    val createdAt: Long
 )

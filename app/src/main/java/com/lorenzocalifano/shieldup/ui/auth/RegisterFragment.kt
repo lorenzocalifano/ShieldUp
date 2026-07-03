@@ -61,7 +61,7 @@ class RegisterFragment : Fragment(R.layout.fragment_register) {
                     )
 
                     Toast.makeText(requireContext(), "Account creato", Toast.LENGTH_SHORT).show()
-                    findNavController().navigate(R.id.homeFragment)
+                    navigateByRole(user.role)
                 },
                 onError = { exception ->
                     Toast.makeText(
@@ -72,5 +72,15 @@ class RegisterFragment : Fragment(R.layout.fragment_register) {
                 }
             )
         }
+    }
+
+    private fun navigateByRole(role: String) {
+        val destination = if (role == "PSYCHOLOGIST") {
+            R.id.psychologistDashboardFragment
+        } else {
+            R.id.homeFragment
+        }
+
+        findNavController().navigate(destination)
     }
 }
