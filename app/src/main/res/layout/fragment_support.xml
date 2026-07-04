@@ -27,80 +27,50 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Prenota un consulto psicologico o accedi alla sala d’attesa."
+            android:text="Prenota un consulto psicologico oppure richiedi supporto immediato."
             android:textColor="#555555"
             android:textSize="16sp" />
 
-        <LinearLayout
+        <Button
+            android:id="@+id/btnUrgentHelp"
+            android:layout_width="match_parent"
+            android:layout_height="62dp"
+            android:layout_marginTop="26dp"
+            android:background="@drawable/bg_red_button"
+            android:gravity="center"
+            android:text="Ho bisogno di aiuto subito"
+            android:textColor="@color/white"
+            android:textSize="17sp"
+            android:textStyle="bold"
+            app:backgroundTint="@null" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="26dp"
+            android:layout_marginBottom="18dp"
+            android:background="#CCCCCC" />
+
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="28dp"
-            android:background="@drawable/bg_gray_button"
-            android:orientation="vertical"
-            android:padding="20dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Dott. Matteo Greco"
-                android:textColor="@color/black"
-                android:textSize="22sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:text="Disponibile domani alle 10:00"
-                android:textColor="#555555"
-                android:textSize="16sp" />
-
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/btnBookChat"
-            android:layout_width="match_parent"
-            android:layout_height="62dp"
-            android:layout_marginTop="28dp"
-            android:background="@drawable/bg_purple_button"
-            android:gravity="center"
-            android:text="Prenota chat oggi 15:00"
-            android:textColor="@color/white"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            app:backgroundTint="@null" />
-
-        <Button
-            android:id="@+id/btnBookVideo"
-            android:layout_width="match_parent"
-            android:layout_height="62dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_purple_button"
-            android:gravity="center"
-            android:text="Prenota videochat domani 10:00"
-            android:textColor="@color/white"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            app:backgroundTint="@null" />
-
-        <Button
-            android:id="@+id/btnWaitingRoom"
-            android:layout_width="match_parent"
-            android:layout_height="62dp"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_gray_button"
-            android:gravity="center"
-            android:text="Apri sala d’attesa"
+            android:text="DISPONIBILITÀ PSICOLOGI"
             android:textColor="@color/black"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            app:backgroundTint="@null" />
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <LinearLayout
+            android:id="@+id/slotsContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:orientation="vertical" />
 
         <Button
             android:id="@+id/btnOtherReports"
             android:layout_width="match_parent"
             android:layout_height="62dp"
-            android:layout_marginTop="14dp"
+            android:layout_marginTop="24dp"
             android:background="@drawable/bg_yellow_button"
             android:gravity="center"
             android:text="Altre segnalazioni"

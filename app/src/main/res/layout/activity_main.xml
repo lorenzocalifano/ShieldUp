@@ -14,47 +14,77 @@
         app:defaultNavHost="true"
         app:navGraph="@navigation/nav_graph"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintBottom_toTopOf="@id/customBottomBar"
+        app:layout_constraintBottom_toTopOf="@id/userBottomBar"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
 
+    <!-- NAVBAR UTENTE -->
     <LinearLayout
-        android:id="@+id/customBottomBar"
+        android:id="@+id/userBottomBar"
         android:layout_width="0dp"
         android:layout_height="104dp"
         android:background="@drawable/bg_nav_gradient"
         android:gravity="center"
         android:orientation="horizontal"
-        android:paddingBottom="12dp"
         android:paddingTop="10dp"
+        android:paddingBottom="12dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent">
 
-        <LinearLayout
-            android:id="@+id/navHome"
-            style="@style/ShieldUpNavItem">
+        <LinearLayout android:id="@+id/navHome" style="@style/ShieldUpNavItem">
             <ImageView style="@style/ShieldUpNavIcon" android:src="@drawable/ic_nav_home" />
             <TextView style="@style/ShieldUpNavText" android:text="Home" />
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/navMap"
-            style="@style/ShieldUpNavItem">
+        <LinearLayout android:id="@+id/navMap" style="@style/ShieldUpNavItem">
             <ImageView style="@style/ShieldUpNavIcon" android:src="@drawable/ic_nav_map" />
             <TextView style="@style/ShieldUpNavText" android:text="Mappa" />
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/navSupport"
-            style="@style/ShieldUpNavItem">
+        <LinearLayout android:id="@+id/navSupport" style="@style/ShieldUpNavItem">
             <ImageView style="@style/ShieldUpNavIcon" android:src="@drawable/ic_nav_support" />
             <TextView style="@style/ShieldUpNavText" android:text="Supporto" />
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/navProfile"
-            style="@style/ShieldUpNavItem">
+        <LinearLayout android:id="@+id/navChat" style="@style/ShieldUpNavItem">
+            <ImageView style="@style/ShieldUpNavIcon" android:src="@drawable/ic_nav_chat" />
+            <TextView style="@style/ShieldUpNavText" android:text="Chat" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/navProfile" style="@style/ShieldUpNavItem">
+            <ImageView style="@style/ShieldUpNavIcon" android:src="@drawable/ic_nav_profile" />
+            <TextView style="@style/ShieldUpNavText" android:text="Profilo" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+    <!-- NAVBAR PSICOLOGO -->
+    <LinearLayout
+        android:id="@+id/psychologistBottomBar"
+        android:layout_width="0dp"
+        android:layout_height="104dp"
+        android:background="@drawable/bg_nav_gradient"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingTop="10dp"
+        android:paddingBottom="12dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <LinearLayout android:id="@+id/navPsychDashboard" style="@style/ShieldUpNavItem">
+            <ImageView style="@style/ShieldUpNavIcon" android:src="@drawable/ic_nav_home" />
+            <TextView style="@style/ShieldUpNavText" android:text="Dashboard" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/navPsychChat" style="@style/ShieldUpNavItem">
+            <ImageView style="@style/ShieldUpNavIcon" android:src="@drawable/ic_nav_chat" />
+            <TextView style="@style/ShieldUpNavText" android:text="Chat" />
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/navPsychProfile" style="@style/ShieldUpNavItem">
             <ImageView style="@style/ShieldUpNavIcon" android:src="@drawable/ic_nav_profile" />
             <TextView style="@style/ShieldUpNavText" android:text="Profilo" />
         </LinearLayout>

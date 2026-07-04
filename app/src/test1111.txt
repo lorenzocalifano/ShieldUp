@@ -1,0 +1,39 @@
+data class AvailabilityDto(
+    val id: String = "",
+    val psychologistId: String,
+    val psychologistName: String,
+    val date: String,
+    val time: String,
+    val scheduledAt: Long,
+    val type: String = "Chat",
+    val booked: Boolean = false,
+    val createdAt: Long = System.currentTimeMillis()
+)
+
+data class UrgentRequestDto(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val status: String,
+    val createdAt: Long,
+    val expiresAt: Long
+)
+
+data class ChatDto(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val psychologistId: String,
+    val psychologistName: String,
+    val lastMessage: String,
+    val lastMessageAt: Long,
+    val createdAt: Long
+)
+
+data class MessageDto(
+    val id: String,
+    val senderId: String,
+    val senderName: String,
+    val text: String,
+    val createdAt: Long
+)

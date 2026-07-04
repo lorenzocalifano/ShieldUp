@@ -13,31 +13,47 @@
         android:textSize="22sp"
         android:textStyle="bold" />
 
-    <EditText
-        android:id="@+id/etAvailabilityDate"
+    <Button
+        android:id="@+id/btnPickDate"
         android:layout_width="match_parent"
         android:layout_height="56dp"
         android:layout_marginTop="18dp"
-        android:background="@drawable/bg_input"
-        android:hint="Data, es. 20/06/2026"
-        android:paddingStart="18dp"
-        android:paddingEnd="18dp" />
+        android:background="@drawable/bg_gray_button"
+        android:text="Seleziona data"
+        android:textColor="@color/black" />
 
-    <EditText
-        android:id="@+id/etAvailabilityTime"
-        android:layout_width="match_parent"
-        android:layout_height="56dp"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/bg_input"
-        android:hint="Ora, es. 15:30"
-        android:paddingStart="18dp"
-        android:paddingEnd="18dp" />
-
-    <RadioGroup
-        android:id="@+id/typeGroup"
+    <TextView
+        android:id="@+id/txtSelectedDate"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="14dp"
+        android:layout_marginTop="8dp"
+        android:text="Nessuna data selezionata"
+        android:textColor="#555555"
+        android:textSize="15sp" />
+
+    <Button
+        android:id="@+id/btnPickTime"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:layout_marginTop="16dp"
+        android:background="@drawable/bg_gray_button"
+        android:text="Seleziona orario"
+        android:textColor="@color/black" />
+
+    <TextView
+        android:id="@+id/txtSelectedTime"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="Nessun orario selezionato"
+        android:textColor="#555555"
+        android:textSize="15sp" />
+
+    <RadioGroup
+        android:id="@+id/radioType"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="18dp"
         android:orientation="horizontal">
 
         <RadioButton

@@ -7,10 +7,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
+import com.google.android.gms.maps.MapsInitializer
 import com.lorenzocalifano.shieldup.databinding.ActivityMainBinding
 import com.lorenzocalifano.shieldup.utils.SessionManager
-import com.google.android.gms.maps.MapsInitializer
-import com.google.android.gms.maps.OnMapsSdkInitializedCallback
 
 class MainActivity : AppCompatActivity() {
 
@@ -31,6 +30,7 @@ class MainActivity : AppCompatActivity() {
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
         requestInitialPermissions()
         setupNavigation()
     }
@@ -53,11 +53,23 @@ class MainActivity : AppCompatActivity() {
         val sessionManager = SessionManager(this)
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
-            binding.customBottomBar.visibility = when (destination.id) {
-                R.id.loginFragment,
-                R.id.registerFragment,
-                R.id.psychologistDashboardFragment -> View.GONE
-                else -> View.VISIBLE
+            val isAuthScreen = destination.id == R.id.loginFragment ||
+                    destination.id == R.id.registerFragment
+
+            val isFullScreen = destination.id == R.id.chatRoomFragment
+
+            if (isAuthScreen || isFullScreen) {
+                binding.userBottomBar.visibility = View.GONE
+                binding.psychologistBottomBar.visibility = View.GONE
+                return@addOnDestinationChangedListener
+            }
+
+            if (sessionManager.getRole() == "PSYCHOLOGIST") {
+                binding.userBottomBar.visibility = View.GONE
+                binding.psychologistBottomBar.visibility = View.VISIBLE
+            } else {
+                binding.userBottomBar.visibility = View.VISIBLE
+                binding.psychologistBottomBar.visibility = View.GONE
             }
         }
 
@@ -77,19 +89,35 @@ class MainActivity : AppCompatActivity() {
             )
         }
 
-        findViewById<View>(R.id.navHome).setOnClickListener {
+        binding.navHome.setOnClickListener {
             navController.navigateToMainDestination(R.id.homeFragment)
         }
 
-        findViewById<View>(R.id.navMap).setOnClickListener {
+        binding.navMap.setOnClickListener {
             navController.navigateToMainDestination(R.id.redZonesFragment)
         }
 
-        findViewById<View>(R.id.navSupport).setOnClickListener {
+        binding.navSupport.setOnClickListener {
             navController.navigateToMainDestination(R.id.supportFragment)
         }
 
-        findViewById<View>(R.id.navProfile).setOnClickListener {
+        binding.navChat.setOnClickListener {
+            navController.navigateToMainDestination(R.id.chatListFragment)
+        }
+
+        binding.navProfile.setOnClickListener {
+            navController.navigateToMainDestination(R.id.settingsFragment)
+        }
+
+        binding.navPsychDashboard.setOnClickListener {
+            navController.navigateToMainDestination(R.id.psychologistDashboardFragment)
+        }
+
+        binding.navPsychChat.setOnClickListener {
+            navController.navigateToMainDestination(R.id.chatListFragment)
+        }
+
+        binding.navPsychProfile.setOnClickListener {
             navController.navigateToMainDestination(R.id.settingsFragment)
         }
     }
@@ -99,7 +127,6 @@ class MainActivity : AppCompatActivity() {
 
         val options = NavOptions.Builder()
             .setLaunchSingleTop(true)
-            .setPopUpTo(R.id.homeFragment, false)
             .build()
 
         navigate(destinationId, null, options)

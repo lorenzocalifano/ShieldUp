@@ -65,4 +65,15 @@
         android:label="Dashboard Psicologo"
         tools:layout="@layout/fragment_psychologist_dashboard" />
 
+    <fragment
+        android:id="@+id/chatListFragment"
+        android:name="com.lorenzocalifano.shieldup.ui.chat.ChatListFragment"
+        android:label="Chat"
+        tools:layout="@layout/fragment_chat_list" />
+
+    <fragment
+        android:id="@+id/chatRoomFragment"
+        android:name="com.lorenzocalifano.shieldup.ui.chat.ChatRoomFragment"
+        android:label="Conversazione"
+        tools:layout="@layout/fragment_chat_room" />
 </navigation>

@@ -40,23 +40,11 @@ class FirebaseRepository {
                 db.collection("users")
                     .add(user)
                     .addOnSuccessListener { doc ->
-                        onSuccess(
-                            UserDto(
-                                id = doc.id,
-                                name = name.trim(),
-                                surname = surname.trim(),
-                                email = normalizedEmail,
-                                role = role
-                            )
-                        )
+                        onSuccess(UserDto(doc.id, name.trim(), surname.trim(), normalizedEmail, role))
                     }
-                    .addOnFailureListener {
-                        onError(Exception("Errore durante la registrazione"))
-                    }
+                    .addOnFailureListener { onError(Exception("Errore durante la registrazione")) }
             }
-            .addOnFailureListener {
-                onError(Exception("Errore di connessione a Firebase"))
-            }
+            .addOnFailureListener { onError(Exception("Errore di connessione a Firebase")) }
     }
 
     fun loginUser(
@@ -95,9 +83,7 @@ class FirebaseRepository {
                     )
                 )
             }
-            .addOnFailureListener {
-                onError(Exception("Errore di connessione a Firebase"))
-            }
+            .addOnFailureListener { onError(Exception("Errore di connessione a Firebase")) }
     }
 
     fun saveEmergencyContact(
@@ -270,6 +256,33 @@ class FirebaseRepository {
             .addOnFailureListener { onError(it) }
     }
 
+    fun loadPsychologistAvailabilities(
+        psychologistId: String,
+        onSuccess: (List<AvailabilityDto>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("availabilities")
+            .whereEqualTo("psychologistId", psychologistId)
+            .get()
+            .addOnSuccessListener { result ->
+                val slots = result.documents.mapNotNull { doc ->
+                    AvailabilityDto(
+                        id = doc.id,
+                        psychologistId = doc.getString("psychologistId") ?: return@mapNotNull null,
+                        psychologistName = doc.getString("psychologistName") ?: "",
+                        date = doc.getString("date") ?: "",
+                        time = doc.getString("time") ?: "",
+                        type = doc.getString("type") ?: "Chat",
+                        booked = doc.getBoolean("booked") ?: false,
+                        createdAt = doc.getLong("createdAt") ?: 0L
+                    )
+                }.sortedByDescending { it.createdAt }
+
+                onSuccess(slots)
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
     fun loadAvailableSlots(
         onSuccess: (List<AvailabilityDto>) -> Unit,
         onError: (Exception) -> Unit
@@ -313,6 +326,18 @@ class FirebaseRepository {
                     "bookedAt" to System.currentTimeMillis()
                 )
             )
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun deleteAvailability(
+        availabilityId: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("availabilities")
+            .document(availabilityId)
+            .delete()
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { onError(it) }
     }
@@ -379,6 +404,149 @@ class FirebaseRepository {
             .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { onError(it) }
     }
+
+    fun createChatFromUrgentRequest(
+        request: UrgentRequestDto,
+        psychologistId: String,
+        psychologistName: String,
+        onSuccess: (String) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val chatData = hashMapOf(
+            "userId" to request.userId,
+            "userName" to request.userName,
+            "psychologistId" to psychologistId,
+            "psychologistName" to psychologistName,
+            "lastMessage" to "Chat avviata",
+            "lastMessageAt" to System.currentTimeMillis(),
+            "createdAt" to System.currentTimeMillis()
+        )
+
+        db.collection("chats")
+            .add(chatData)
+            .addOnSuccessListener { chatDoc ->
+                db.collection("urgentPsychologicalRequests")
+                    .document(request.id)
+                    .update(
+                        mapOf(
+                            "status" to "ACCEPTED",
+                            "psychologistId" to psychologistId,
+                            "psychologistName" to psychologistName,
+                            "chatId" to chatDoc.id,
+                            "acceptedAt" to System.currentTimeMillis()
+                        )
+                    )
+                    .addOnSuccessListener {
+                        onSuccess(chatDoc.id)
+                    }
+                    .addOnFailureListener { onError(it) }
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun loadChatsForUser(
+        userId: String,
+        role: String,
+        onSuccess: (List<ChatDto>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val field = if (role == "PSYCHOLOGIST") "psychologistId" else "userId"
+
+        db.collection("chats")
+            .whereEqualTo(field, userId)
+            .get()
+            .addOnSuccessListener { result ->
+                val chats = result.documents.mapNotNull { doc ->
+                    ChatDto(
+                        id = doc.id,
+                        userId = doc.getString("userId") ?: return@mapNotNull null,
+                        userName = doc.getString("userName") ?: "",
+                        psychologistId = doc.getString("psychologistId") ?: "",
+                        psychologistName = doc.getString("psychologistName") ?: "",
+                        lastMessage = doc.getString("lastMessage") ?: "Nessun messaggio",
+                        lastMessageAt = doc.getLong("lastMessageAt") ?: 0L,
+                        createdAt = doc.getLong("createdAt") ?: 0L
+                    )
+                }.sortedByDescending { it.lastMessageAt }
+
+                onSuccess(chats)
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun sendMessage(
+        chatId: String,
+        senderId: String,
+        senderName: String,
+        text: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val now = System.currentTimeMillis()
+
+        val message = hashMapOf(
+            "senderId" to senderId,
+            "senderName" to senderName,
+            "text" to text,
+            "createdAt" to now
+        )
+
+        db.collection("chats")
+            .document(chatId)
+            .collection("messages")
+            .add(message)
+            .addOnSuccessListener {
+                db.collection("chats")
+                    .document(chatId)
+                    .update(
+                        mapOf(
+                            "lastMessage" to text,
+                            "lastMessageAt" to now
+                        )
+                    )
+                    .addOnSuccessListener { onSuccess() }
+                    .addOnFailureListener { onError(it) }
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun loadMessages(
+        chatId: String,
+        onSuccess: (List<MessageDto>) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("chats")
+            .document(chatId)
+            .collection("messages")
+            .orderBy("createdAt", Query.Direction.ASCENDING)
+            .get()
+            .addOnSuccessListener { result ->
+                val messages = result.documents.mapNotNull { doc ->
+                    MessageDto(
+                        id = doc.id,
+                        senderId = doc.getString("senderId") ?: return@mapNotNull null,
+                        senderName = doc.getString("senderName") ?: "",
+                        text = doc.getString("text") ?: "",
+                        createdAt = doc.getLong("createdAt") ?: 0L
+                    )
+                }
+
+                onSuccess(messages)
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun deleteChat(
+        chatId: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("chats")
+            .document(chatId)
+            .delete()
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
 }
 
 data class UserDto(
@@ -412,7 +580,8 @@ data class AvailabilityDto(
     val psychologistName: String,
     val date: String,
     val time: String,
-    val type: String,
+    val scheduledAt: Long = 0L,
+    val type: String = "Chat",
     val booked: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
@@ -422,5 +591,25 @@ data class UrgentRequestDto(
     val userId: String,
     val userName: String,
     val status: String,
+    val createdAt: Long,
+    val expiresAt: Long = 0L
+)
+
+data class ChatDto(
+    val id: String,
+    val userId: String,
+    val userName: String,
+    val psychologistId: String,
+    val psychologistName: String,
+    val lastMessage: String,
+    val lastMessageAt: Long,
+    val createdAt: Long
+)
+
+data class MessageDto(
+    val id: String,
+    val senderId: String,
+    val senderName: String,
+    val text: String,
     val createdAt: Long
 )
