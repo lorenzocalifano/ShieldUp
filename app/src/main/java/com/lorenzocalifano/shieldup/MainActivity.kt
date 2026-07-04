@@ -8,12 +8,26 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
 import com.google.android.gms.maps.MapsInitializer
+import com.lorenzocalifano.shieldup.data.FirebaseRepository
 import com.lorenzocalifano.shieldup.databinding.ActivityMainBinding
 import com.lorenzocalifano.shieldup.utils.SessionManager
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private val repository = FirebaseRepository()
+
+    override fun onStop() {
+        super.onStop()
+
+        val sessionManager = SessionManager(this)
+
+        if (sessionManager.isLogged() && sessionManager.getRole() != "PSYCHOLOGIST") {
+            repository.deleteWaitingUrgentRequestsForUser(
+                userId = sessionManager.getUserId()
+            )
+        }
+    }
 
     private val permissionLauncher =
         registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { }

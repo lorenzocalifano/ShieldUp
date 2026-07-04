@@ -49,27 +49,4 @@
         android:textColor="#555555"
         android:textSize="15sp" />
 
-    <RadioGroup
-        android:id="@+id/radioType"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="18dp"
-        android:orientation="horizontal">
-
-        <RadioButton
-            android:id="@+id/radioChat"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:checked="true"
-            android:text="Chat" />
-
-        <RadioButton
-            android:id="@+id/radioVideo"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:text="Videochat" />
-
-    </RadioGroup>
-
 </LinearLayout>

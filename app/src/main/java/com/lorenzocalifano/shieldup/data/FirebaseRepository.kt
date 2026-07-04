@@ -190,29 +190,6 @@ class FirebaseRepository {
             .addOnFailureListener { onError(it) }
     }
 
-    fun setPsychologistImmediateAvailability(
-        psychologistId: String,
-        psychologistName: String,
-        psychologistEmail: String,
-        available: Boolean,
-        onSuccess: () -> Unit,
-        onError: (Exception) -> Unit
-    ) {
-        val data = mapOf(
-            "psychologistId" to psychologistId,
-            "name" to psychologistName,
-            "email" to psychologistEmail,
-            "availableNow" to available,
-            "updatedAt" to System.currentTimeMillis()
-        )
-
-        db.collection("psychologistStatus")
-            .document(psychologistId)
-            .set(data)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener { onError(it) }
-    }
-
     fun loadPsychologists(
         onSuccess: (List<UserDto>) -> Unit,
         onError: (Exception) -> Unit
@@ -243,6 +220,7 @@ class FirebaseRepository {
         val data = hashMapOf(
             "psychologistId" to availability.psychologistId,
             "psychologistName" to availability.psychologistName,
+            "scheduledAt" to availability.scheduledAt,
             "date" to availability.date,
             "time" to availability.time,
             "type" to availability.type,
@@ -272,11 +250,13 @@ class FirebaseRepository {
                         psychologistName = doc.getString("psychologistName") ?: "",
                         date = doc.getString("date") ?: "",
                         time = doc.getString("time") ?: "",
+                        scheduledAt = doc.getLong("scheduledAt") ?: 0L,
                         type = doc.getString("type") ?: "Chat",
                         booked = doc.getBoolean("booked") ?: false,
                         createdAt = doc.getLong("createdAt") ?: 0L
                     )
-                }.sortedByDescending { it.createdAt }
+                }.filter { it.scheduledAt > System.currentTimeMillis() }
+                 .sortedBy { it.scheduledAt }
 
                 onSuccess(slots)
             }
@@ -298,11 +278,13 @@ class FirebaseRepository {
                         psychologistName = doc.getString("psychologistName") ?: "",
                         date = doc.getString("date") ?: "",
                         time = doc.getString("time") ?: "",
+                        scheduledAt = doc.getLong("scheduledAt") ?: 0L,
                         type = doc.getString("type") ?: "Chat",
                         booked = doc.getBoolean("booked") ?: false,
                         createdAt = doc.getLong("createdAt") ?: 0L
                     )
-                }.sortedByDescending { it.createdAt }
+                }.filter { it.scheduledAt > System.currentTimeMillis() }
+                 .sortedBy { it.scheduledAt }
 
                 onSuccess(slots)
             }
@@ -381,27 +363,6 @@ class FirebaseRepository {
 
                 onSuccess(requests)
             }
-            .addOnFailureListener { onError(it) }
-    }
-
-    fun acceptUrgentRequest(
-        requestId: String,
-        psychologistId: String,
-        psychologistName: String,
-        onSuccess: () -> Unit,
-        onError: (Exception) -> Unit
-    ) {
-        db.collection("urgentPsychologicalRequests")
-            .document(requestId)
-            .update(
-                mapOf(
-                    "status" to "ACCEPTED",
-                    "psychologistId" to psychologistId,
-                    "psychologistName" to psychologistName,
-                    "acceptedAt" to System.currentTimeMillis()
-                )
-            )
-            .addOnSuccessListener { onSuccess() }
             .addOnFailureListener { onError(it) }
     }
 
@@ -541,10 +502,46 @@ class FirebaseRepository {
         onSuccess: () -> Unit,
         onError: (Exception) -> Unit
     ) {
-        db.collection("chats")
-            .document(chatId)
-            .delete()
-            .addOnSuccessListener { onSuccess() }
+        val chatRef = db.collection("chats").document(chatId)
+
+        chatRef.collection("messages")
+            .get()
+            .addOnSuccessListener { messages ->
+                val batch = db.batch()
+
+                messages.documents.forEach { message ->
+                    batch.delete(message.reference)
+                }
+
+                batch.delete(chatRef)
+
+                batch.commit()
+                    .addOnSuccessListener { onSuccess() }
+                    .addOnFailureListener { onError(it) }
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun deleteWaitingUrgentRequestsForUser(
+        userId: String,
+        onSuccess: () -> Unit = {},
+        onError: (Exception) -> Unit = {}
+    ) {
+        db.collection("urgentPsychologicalRequests")
+            .whereEqualTo("userId", userId)
+            .whereEqualTo("status", "WAITING")
+            .get()
+            .addOnSuccessListener { result ->
+                val batch = db.batch()
+
+                result.documents.forEach { doc ->
+                    batch.delete(doc.reference)
+                }
+
+                batch.commit()
+                    .addOnSuccessListener { onSuccess() }
+                    .addOnFailureListener { onError(it) }
+            }
             .addOnFailureListener { onError(it) }
     }
 }

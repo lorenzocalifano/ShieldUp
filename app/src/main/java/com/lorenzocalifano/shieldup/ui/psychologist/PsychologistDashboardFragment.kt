@@ -7,9 +7,9 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Button
 import android.widget.LinearLayout
-import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.findNavController
@@ -19,52 +19,33 @@ import com.lorenzocalifano.shieldup.data.FirebaseRepository
 import com.lorenzocalifano.shieldup.data.UrgentRequestDto
 import com.lorenzocalifano.shieldup.utils.SessionManager
 import java.util.Calendar
+import java.util.concurrent.TimeUnit
 
 class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_dashboard) {
 
     private val repository = FirebaseRepository()
-    private var availableNow = false
 
     private lateinit var sessionManager: SessionManager
     private lateinit var availabilitiesContainer: LinearLayout
     private lateinit var urgentRequestsContainer: LinearLayout
-    private lateinit var toggleImmediateButton: Button
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
         sessionManager = SessionManager(requireContext())
 
-        val infoText = view.findViewById<TextView>(R.id.txtPsychologistInfo)
-        val createAvailabilityButton = view.findViewById<Button>(R.id.btnCreateAvailability)
-        toggleImmediateButton = view.findViewById(R.id.btnToggleImmediate)
-        val logoutButton = view.findViewById<Button>(R.id.btnPsychologistLogout)
+        view.findViewById<TextView>(R.id.txtPsychologistInfo).text =
+            "${sessionManager.getName()}\n${sessionManager.getEmail()}"
 
         availabilitiesContainer = view.findViewById(R.id.availabilitiesContainer)
         urgentRequestsContainer = view.findViewById(R.id.urgentRequestsContainer)
 
-        infoText.text = "${sessionManager.getName()}\n${sessionManager.getEmail()}"
-
-        createAvailabilityButton.setOnClickListener {
+        view.findViewById<Button>(R.id.btnCreateAvailability).setOnClickListener {
             showCreateAvailabilityDialog()
         }
 
-        toggleImmediateButton.setOnClickListener {
-            toggleImmediateAvailability()
-        }
-
-        logoutButton.setOnClickListener {
-            sessionManager.clearSession()
-            findNavController().navigate(
-                R.id.loginFragment,
-                null,
-                NavOptions.Builder()
-                    .setPopUpTo(R.id.nav_graph, true)
-                    .build()
-            )
-        }
-
-        refreshDashboard()
+        loadAvailabilities()
+        loadUrgentRequests()
     }
 
     private fun showCreateAvailabilityDialog() {
@@ -74,37 +55,48 @@ class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_da
         val pickTimeButton = dialogView.findViewById<Button>(R.id.btnPickTime)
         val selectedDateText = dialogView.findViewById<TextView>(R.id.txtSelectedDate)
         val selectedTimeText = dialogView.findViewById<TextView>(R.id.txtSelectedTime)
-        val radioVideo = dialogView.findViewById<RadioButton>(R.id.radioVideo)
 
+        val calendar = Calendar.getInstance()
         var selectedDate = ""
         var selectedTime = ""
+        var selectedScheduledAt = 0L
 
         pickDateButton.setOnClickListener {
-            val calendar = Calendar.getInstance()
+            val now = Calendar.getInstance()
 
             DatePickerDialog(
                 requireContext(),
-                { _, year, month, dayOfMonth ->
-                    selectedDate = "%02d/%02d/%04d".format(dayOfMonth, month + 1, year)
+                { _, year, month, day ->
+                    calendar.set(Calendar.YEAR, year)
+                    calendar.set(Calendar.MONTH, month)
+                    calendar.set(Calendar.DAY_OF_MONTH, day)
+
+                    selectedDate = "%02d/%02d/%04d".format(day, month + 1, year)
                     selectedDateText.text = selectedDate
                 },
-                calendar.get(Calendar.YEAR),
-                calendar.get(Calendar.MONTH),
-                calendar.get(Calendar.DAY_OF_MONTH)
+                now.get(Calendar.YEAR),
+                now.get(Calendar.MONTH),
+                now.get(Calendar.DAY_OF_MONTH)
             ).show()
         }
 
         pickTimeButton.setOnClickListener {
-            val calendar = Calendar.getInstance()
+            val now = Calendar.getInstance()
 
             TimePickerDialog(
                 requireContext(),
-                { _, hourOfDay, minute ->
-                    selectedTime = "%02d:%02d".format(hourOfDay, minute)
+                { _, hour, minute ->
+                    calendar.set(Calendar.HOUR_OF_DAY, hour)
+                    calendar.set(Calendar.MINUTE, minute)
+                    calendar.set(Calendar.SECOND, 0)
+                    calendar.set(Calendar.MILLISECOND, 0)
+
+                    selectedTime = "%02d:%02d".format(hour, minute)
                     selectedTimeText.text = selectedTime
+                    selectedScheduledAt = calendar.timeInMillis
                 },
-                calendar.get(Calendar.HOUR_OF_DAY),
-                calendar.get(Calendar.MINUTE),
+                now.get(Calendar.HOUR_OF_DAY),
+                now.get(Calendar.MINUTE),
                 true
             ).show()
         }
@@ -127,22 +119,30 @@ class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_da
                     return@setOnClickListener
                 }
 
+                if (selectedScheduledAt <= System.currentTimeMillis()) {
+                    Toast.makeText(requireContext(), "La disponibilità deve essere futura", Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
                 val availability = AvailabilityDto(
                     psychologistId = sessionManager.getUserId(),
                     psychologistName = sessionManager.getName(),
                     date = selectedDate,
                     time = selectedTime,
-                    type = if (radioVideo.isChecked) "Videochat" else "Chat"
+                    scheduledAt = selectedScheduledAt,
+                    type = "Chat"
                 )
 
                 repository.savePsychologistAvailability(
                     availability = availability,
                     onSuccess = {
+                        if (!isAdded) return@savePsychologistAvailability
                         Toast.makeText(requireContext(), "Disponibilità salvata", Toast.LENGTH_SHORT).show()
                         dialog.dismiss()
                         loadAvailabilities()
                     },
                     onError = {
+                        if (!isAdded) return@savePsychologistAvailability
                         Toast.makeText(requireContext(), "Errore salvataggio disponibilità", Toast.LENGTH_LONG).show()
                     }
                 )
@@ -152,61 +152,25 @@ class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_da
         dialog.show()
     }
 
-    private fun toggleImmediateAvailability() {
-        availableNow = !availableNow
-
-        repository.setPsychologistImmediateAvailability(
-            psychologistId = sessionManager.getUserId(),
-            psychologistName = sessionManager.getName(),
-            psychologistEmail = sessionManager.getEmail(),
-            available = availableNow,
-            onSuccess = {
-                updateImmediateButton()
-                Toast.makeText(
-                    requireContext(),
-                    if (availableNow) "Ora sei disponibile per richieste immediate" else "Disponibilità immediata disattivata",
-                    Toast.LENGTH_SHORT
-                ).show()
-            },
-            onError = {
-                availableNow = !availableNow
-                Toast.makeText(requireContext(), "Errore aggiornamento disponibilità", Toast.LENGTH_LONG).show()
-            }
-        )
-    }
-
-    private fun updateImmediateButton() {
-        toggleImmediateButton.text = if (availableNow) {
-            "Disponibile ora: ATTIVO"
-        } else {
-            "Sono disponibile ora"
-        }
-    }
-
-    private fun refreshDashboard() {
-        updateImmediateButton()
-        loadAvailabilities()
-        loadUrgentRequests()
-    }
-
     private fun loadAvailabilities() {
         repository.loadPsychologistAvailabilities(
             psychologistId = sessionManager.getUserId(),
             onSuccess = { availabilities ->
-                if (!isAdded || context == null) return@loadPsychologistAvailabilities
+                if (!isAdded) return@loadPsychologistAvailabilities
+
                 availabilitiesContainer.removeAllViews()
 
                 if (availabilities.isEmpty()) {
-                    availabilitiesContainer.addView(createEmptyText("Nessuna disponibilità creata"))
+                    availabilitiesContainer.addView(createEmptyText("Nessuna disponibilità futura"))
                     return@loadPsychologistAvailabilities
                 }
 
-                availabilities.forEach { availability ->
-                    availabilitiesContainer.addView(createAvailabilityCard(availability))
+                availabilities.forEach {
+                    availabilitiesContainer.addView(createAvailabilityCard(it))
                 }
             },
             onError = {
-                if (!isAdded || context == null) return@loadPsychologistAvailabilities
+                if (!isAdded) return@loadPsychologistAvailabilities
                 Toast.makeText(requireContext(), "Errore caricamento disponibilità", Toast.LENGTH_LONG).show()
             }
         )
@@ -215,7 +179,7 @@ class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_da
     private fun loadUrgentRequests() {
         repository.loadPendingUrgentRequests(
             onSuccess = { requests ->
-                if (!isAdded || context == null) return@loadPendingUrgentRequests
+                if (!isAdded) return@loadPendingUrgentRequests
 
                 urgentRequestsContainer.removeAllViews()
 
@@ -224,19 +188,13 @@ class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_da
                     return@loadPendingUrgentRequests
                 }
 
-                requests.forEach { request ->
-                    if (!isAdded || context == null) return@loadPendingUrgentRequests
-                    urgentRequestsContainer.addView(createUrgentRequestCard(request))
+                requests.forEach {
+                    urgentRequestsContainer.addView(createUrgentRequestCard(it))
                 }
             },
             onError = {
-                if (!isAdded || context == null) return@loadPendingUrgentRequests
-
-                Toast.makeText(
-                    requireContext(),
-                    "Errore caricamento richieste urgenti",
-                    Toast.LENGTH_LONG
-                ).show()
+                if (!isAdded) return@loadPendingUrgentRequests
+                Toast.makeText(requireContext(), "Errore caricamento richieste urgenti", Toast.LENGTH_LONG).show()
             }
         )
     }
@@ -244,41 +202,41 @@ class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_da
     private fun createAvailabilityCard(availability: AvailabilityDto): View {
         val card = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(22, 18, 22, 18)
-            background = ContextCompatCompat.getDrawableSafe(this@PsychologistDashboardFragment, R.drawable.bg_gray_button)
-
-            val params = LinearLayout.LayoutParams(
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_gray_button)
+            layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(0, 0, 0, 14)
-            layoutParams = params
+            ).apply { setMargins(0, 0, 0, dp(14)) }
         }
 
         val title = TextView(requireContext()).apply {
             text = "${availability.date} - ${availability.time}"
             textSize = 18f
-            setTextColor(resources.getColor(R.color.black, null))
+            setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
 
         val subtitle = TextView(requireContext()).apply {
-            text = "${availability.type} • ${if (availability.booked) "Prenotata" else "Disponibile"}"
+            text = if (availability.booked) "Chat prenotata" else "Chat disponibile"
             textSize = 15f
             setTextColor(0xFF555555.toInt())
+            setPadding(0, dp(4), 0, 0)
         }
 
         val deleteButton = Button(requireContext()).apply {
             text = "Elimina"
-            setTextColor(resources.getColor(R.color.emergency_red, null))
+            setTextColor(ContextCompat.getColor(requireContext(), R.color.emergency_red))
             setOnClickListener {
                 repository.deleteAvailability(
                     availabilityId = availability.id,
                     onSuccess = {
+                        if (!isAdded) return@deleteAvailability
                         Toast.makeText(requireContext(), "Disponibilità eliminata", Toast.LENGTH_SHORT).show()
                         loadAvailabilities()
                     },
                     onError = {
+                        if (!isAdded) return@deleteAvailability
                         Toast.makeText(requireContext(), "Errore eliminazione", Toast.LENGTH_LONG).show()
                     }
                 )
@@ -293,49 +251,54 @@ class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_da
     }
 
     private fun createUrgentRequestCard(request: UrgentRequestDto): View {
+        val minutesWaiting = TimeUnit.MILLISECONDS.toMinutes(
+            System.currentTimeMillis() - request.createdAt
+        ).coerceAtLeast(0)
+
         val card = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(22, 18, 22, 18)
-            background = ContextCompatCompat.getDrawableSafe(this@PsychologistDashboardFragment, R.drawable.bg_gray_button)
-
-            val params = LinearLayout.LayoutParams(
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_gray_button)
+            layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(0, 0, 0, 14)
-            layoutParams = params
+            ).apply { setMargins(0, 0, 0, dp(14)) }
         }
 
         val title = TextView(requireContext()).apply {
             text = request.userName
             textSize = 18f
-            setTextColor(resources.getColor(R.color.black, null))
+            setTextColor(ContextCompat.getColor(requireContext(), R.color.black))
             setTypeface(null, android.graphics.Typeface.BOLD)
         }
 
         val subtitle = TextView(requireContext()).apply {
-            text = "Richiesta urgente in attesa"
+            text = "In attesa da $minutesWaiting minuti"
             textSize = 15f
             setTextColor(0xFF555555.toInt())
+            setPadding(0, dp(4), 0, 0)
         }
 
         val acceptButton = Button(requireContext()).apply {
-            text = "Accetta richiesta"
+            text = "Accetta e apri chat"
             setOnClickListener {
                 repository.createChatFromUrgentRequest(
                     request = request,
                     psychologistId = sessionManager.getUserId(),
                     psychologistName = sessionManager.getName(),
                     onSuccess = { chatId ->
-                        Toast.makeText(requireContext(), "Chat avviata", Toast.LENGTH_SHORT).show()
+                        if (!isAdded) return@createChatFromUrgentRequest
 
-                        val bundle = Bundle().apply {
-                            putString("chatId", chatId)
-                        }
-
-                        findNavController().navigate(R.id.chatRoomFragment, bundle)
+                        findNavController().navigate(
+                            R.id.chatRoomFragment,
+                            Bundle().apply {
+                                putString("chatId", chatId)
+                                putString("chatTitle", request.userName)
+                            }
+                        )
                     },
                     onError = { exception ->
+                        if (!isAdded) return@createChatFromUrgentRequest
                         Toast.makeText(
                             requireContext(),
                             exception.message ?: "Errore avvio chat",
@@ -358,12 +321,11 @@ class PsychologistDashboardFragment : Fragment(R.layout.fragment_psychologist_da
             text = message
             textSize = 15f
             setTextColor(0xFF555555.toInt())
-            setPadding(0, 10, 0, 18)
+            setPadding(0, dp(10), 0, dp(18))
         }
     }
-}
 
-private object ContextCompatCompat {
-    fun getDrawableSafe(fragment: Fragment, drawableId: Int) =
-        androidx.core.content.ContextCompat.getDrawable(fragment.requireContext(), drawableId)
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
+    }
 }
