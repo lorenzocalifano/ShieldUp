@@ -24,13 +24,21 @@ android {
     }
 
     defaultConfig {
+
         applicationId = "com.lorenzocalifano.shieldup"
         minSdk = 26
         targetSdk = 35
+
         versionCode = 1
         versionName = "1.0"
 
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+
+        buildConfigField(
+            "String",
+            "MAPS_API_KEY",
+            "\"$mapsApiKey\""
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,6 +60,7 @@ android {
 
     buildFeatures {
         viewBinding = true
+        buildConfig = true
     }
 }
 

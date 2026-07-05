@@ -34,5 +34,13 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
         view.findViewById<TextView>(R.id.cardSafeRoute).setOnClickListener {
             findNavController().navigate(R.id.emergencyCountdownFragment)
         }
+
+        view.findViewById<TextView>(R.id.cardSafeRouteCalculator).setOnClickListener {
+            val bundle = Bundle().apply {
+                putBoolean("safeRouteMode", true)
+            }
+
+            findNavController().navigate(R.id.redZonesFragment, bundle)
+        }
     }
 }

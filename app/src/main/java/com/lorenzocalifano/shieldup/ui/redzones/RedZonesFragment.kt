@@ -21,6 +21,9 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.CircleOptions
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.Polyline
+import com.google.android.gms.maps.model.PolylineOptions
+import com.lorenzocalifano.shieldup.BuildConfig
 import com.lorenzocalifano.shieldup.R
 import com.lorenzocalifano.shieldup.data.FirebaseRepository
 import com.lorenzocalifano.shieldup.data.RedZoneDto
@@ -29,10 +32,18 @@ import com.lorenzocalifano.shieldup.utils.SessionManager
 class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
     private val repository = FirebaseRepository()
+    private val safeRouteService = SafeRouteService()
+
     private var googleMap: GoogleMap? = null
+    private var routePolyline: Polyline? = null
+
+    private val activeRedZones = mutableListOf<RedZoneDto>()
 
     private val anconaCenter = LatLng(43.6158, 13.5189)
     private val redZoneDurationMs = 60L * 60L * 1000L
+    private val redZoneRadiusMeters = 160.0
+
+    private var safeRouteMode = false
 
     companion object {
         private const val TAG = "SHIELDUP_MAP"
@@ -41,7 +52,7 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        Log.d(TAG, "onViewCreated chiamato")
+        safeRouteMode = arguments?.getBoolean("safeRouteMode") == true
 
         setupMap()
         setupButtons(view)
@@ -57,56 +68,250 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
     }
 
     private fun setupMap() {
-        Log.d(TAG, "setupMap avviato")
-
         val mapFragment = childFragmentManager
             .findFragmentById(R.id.googleMap) as? SupportMapFragment
 
         if (mapFragment == null) {
-            Log.e(TAG, "SupportMapFragment NON trovato. Controlla fragment_red_zones.xml")
             Toast.makeText(requireContext(), "Errore caricamento mappa", Toast.LENGTH_LONG).show()
             return
         }
 
-        Log.d(TAG, "SupportMapFragment trovato")
-
         mapFragment.getMapAsync { map ->
-            Log.d(TAG, "onMapReady chiamato")
-
             googleMap = map
-            Log.d(TAG, "GoogleMap assegnata correttamente")
 
             map.uiSettings.isZoomControlsEnabled = false
             map.uiSettings.isMyLocationButtonEnabled = false
 
-            Log.d(TAG, "Permesso posizione: ${hasLocationPermission()}")
-
             enableUserLocationIfAllowed()
-
-            Log.d(TAG, "Sposto camera su posizione corrente o Ancona")
             moveToCurrentLocation()
-
-            Log.d(TAG, "Inizio caricamento Red Zones da Firestore")
             loadRedZonesFromFirebase()
+
+            if (safeRouteMode) {
+                showDestinationDialog()
+            }
         }
     }
 
     private fun setupButtons(view: View) {
-        Log.d(TAG, "setupButtons avviato")
-
         view.findViewById<Button>(R.id.btnAddRedZone).setOnClickListener {
-            Log.d(TAG, "Click btnAddRedZone")
             showAddRedZoneDialog()
         }
 
         view.findViewById<Button>(R.id.btnRedZoneList).setOnClickListener {
-            Log.d(TAG, "Click btnRedZoneList")
             findNavController().navigate(R.id.redZoneListFragment)
         }
 
         view.findViewById<Button>(R.id.btnMyLocation).setOnClickListener {
-            Log.d(TAG, "Click btnMyLocation")
             moveToCurrentLocation()
+        }
+    }
+
+    private fun showDestinationDialog() {
+        val input = EditText(requireContext()).apply {
+            hint = "Inserisci indirizzo di destinazione"
+            setSingleLine(false)
+            minLines = 1
+            maxLines = 3
+            setPadding(32, 24, 32, 24)
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Calcola percorso sicuro")
+            .setMessage("Inserisci la via o l'indirizzo da raggiungere.")
+            .setView(input)
+            .setNegativeButton("Annulla", null)
+            .setPositiveButton("Calcola", null)
+            .create()
+            .apply {
+                setOnShowListener {
+                    getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                        val destinationAddress = input.text.toString().trim()
+
+                        if (destinationAddress.isEmpty()) {
+                            Toast.makeText(
+                                requireContext(),
+                                "Inserisci una destinazione",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return@setOnClickListener
+                        }
+
+                        dismiss()
+                        calculateSafeRoute(destinationAddress)
+                    }
+                }
+            }
+            .show()
+    }
+
+    private fun calculateSafeRoute(destinationAddress: String) {
+        if (!hasLocationPermission()) {
+            Toast.makeText(
+                requireContext(),
+                "Permesso posizione necessario per calcolare il percorso",
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
+
+        fusedLocationClient.lastLocation
+            .addOnSuccessListener { location ->
+                val origin = if (location != null) {
+                    LatLng(location.latitude, location.longitude)
+                } else {
+                    googleMap?.cameraPosition?.target ?: anconaCenter
+                }
+
+                Toast.makeText(requireContext(), "Calcolo percorso sicuro...", Toast.LENGTH_SHORT).show()
+
+                safeRouteService.calculateWalkingRoutes(
+                    apiKey = BuildConfig.MAPS_API_KEY,
+                    origin = origin,
+                    destinationAddress = destinationAddress,
+                    onSuccess = { routes ->
+                        requireActivity().runOnUiThread {
+                            if (!isAdded) return@runOnUiThread
+                            chooseAndDrawSafestRoute(
+                                routes = routes,
+                                origin = origin,
+                                destinationAddress = destinationAddress
+                            )
+                        }
+                    },
+                    onError = { exception ->
+                        requireActivity().runOnUiThread {
+                            if (!isAdded) return@runOnUiThread
+
+                            Log.e(TAG, "Errore calcolo percorso sicuro", exception)
+
+                            Toast.makeText(
+                                requireContext(),
+                                exception.message ?: "Errore calcolo percorso",
+                                Toast.LENGTH_LONG
+                            ).show()
+                        }
+                    }
+                )
+            }
+            .addOnFailureListener { exception ->
+                Log.e(TAG, "Errore recupero posizione", exception)
+
+                Toast.makeText(
+                    requireContext(),
+                    "Errore recupero posizione",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+    }
+
+    private fun chooseAndDrawSafestRoute(
+        routes: List<List<LatLng>>,
+        origin: LatLng,
+        destinationAddress: String
+    ) {
+        if (routes.isEmpty()) {
+            Toast.makeText(requireContext(), "Nessun percorso trovato", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val firstEvaluation = routes
+            .map {
+                RouteSafetyUtils.evaluateRoute(
+                    route = it,
+                    redZones = activeRedZones,
+                    redZoneRadiusMeters = redZoneRadiusMeters
+                )
+            }
+            .sortedWith(
+                compareBy<SafeRouteResult> { it.dangerousIntersections }
+                    .thenBy { it.distanceMeters }
+            )
+
+        val bestInitialRoute = firstEvaluation.first()
+
+        if (bestInitialRoute.dangerousIntersections == 0) {
+            drawSafeRoute(bestInitialRoute.points)
+            Toast.makeText(requireContext(), "Percorso sicuro trovato", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val dangerousZones = RouteSafetyUtils.getIntersectedZones(
+            routePoints = bestInitialRoute.points,
+            redZones = activeRedZones,
+            redZoneRadiusMeters = redZoneRadiusMeters
+        ).take(2)
+
+        if (dangerousZones.isEmpty()) {
+            drawSafeRoute(bestInitialRoute.points)
+            Toast.makeText(requireContext(), "Percorso migliore disponibile", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        Toast.makeText(requireContext(), "Ricerca deviazione sicura...", Toast.LENGTH_SHORT).show()
+
+        val candidateWaypointSets = mutableListOf<List<LatLng>>()
+
+        dangerousZones.forEach { zone ->
+            val center = LatLng(zone.latitude, zone.longitude)
+            RouteSafetyUtils.createAvoidanceWaypointsAroundZone(
+                zoneCenter = center,
+                radiusMeters = redZoneRadiusMeters
+            ).forEach { waypoint ->
+                candidateWaypointSets.add(listOf(waypoint))
+            }
+        }
+
+        if (dangerousZones.size >= 2) {
+            val firstZoneWaypoints = RouteSafetyUtils.createAvoidanceWaypointsAroundZone(
+                zoneCenter = LatLng(dangerousZones[0].latitude, dangerousZones[0].longitude),
+                radiusMeters = redZoneRadiusMeters
+            )
+
+            val secondZoneWaypoints = RouteSafetyUtils.createAvoidanceWaypointsAroundZone(
+                zoneCenter = LatLng(dangerousZones[1].latitude, dangerousZones[1].longitude),
+                radiusMeters = redZoneRadiusMeters
+            )
+
+            firstZoneWaypoints.take(4).forEach { first ->
+                secondZoneWaypoints.take(4).forEach { second ->
+                    candidateWaypointSets.add(listOf(first, second))
+                }
+            }
+        }
+
+        calculateCandidateRoutes(
+            origin = origin,
+            destinationAddress = destinationAddress,
+            waypointSets = candidateWaypointSets,
+            collectedRoutes = routes.toMutableList(),
+            index = 0,
+            fallbackRoute = bestInitialRoute.points
+        )
+    }
+
+    private fun drawSafeRoute(points: List<LatLng>) {
+        val map = googleMap ?: return
+
+        routePolyline?.remove()
+
+        routePolyline = map.addPolyline(
+            PolylineOptions()
+                .addAll(points)
+                .width(10f)
+                .color(0xFF2E7D32.toInt())
+                .geodesic(true)
+        )
+
+        if (points.isNotEmpty()) {
+            map.addMarker(
+                MarkerOptions()
+                    .position(points.last())
+                    .title("Destinazione")
+            )
+
+            map.animateCamera(CameraUpdateFactory.newLatLngZoom(points.first(), 15f))
         }
     }
 
@@ -160,7 +365,6 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
     private fun saveUsingCurrentPosition(title: String, description: String) {
         if (!hasLocationPermission()) {
-            Log.w(TAG, "Permesso posizione non concesso, uso centro mappa")
             Toast.makeText(
                 requireContext(),
                 "Permesso posizione non concesso. Uso il centro della mappa.",
@@ -175,17 +379,14 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
                 val position = if (location != null) {
-                    Log.d(TAG, "Posizione GPS ottenuta: ${location.latitude}, ${location.longitude}")
                     LatLng(location.latitude, location.longitude)
                 } else {
-                    Log.w(TAG, "lastLocation null, uso centro mappa")
                     googleMap?.cameraPosition?.target ?: anconaCenter
                 }
 
                 saveRedZoneToFirebase(title, description, position)
             }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "Errore recupero posizione", exception)
+            .addOnFailureListener {
                 val position = googleMap?.cameraPosition?.target ?: anconaCenter
                 saveRedZoneToFirebase(title, description, position)
             }
@@ -193,7 +394,6 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
     private fun saveUsingMapCenter(title: String, description: String) {
         val position = googleMap?.cameraPosition?.target ?: anconaCenter
-        Log.d(TAG, "Salvo usando centro mappa: ${position.latitude}, ${position.longitude}")
         saveRedZoneToFirebase(title, description, position)
     }
 
@@ -211,18 +411,19 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             type = "Pericolo"
         )
 
-        Log.d(TAG, "Salvataggio Red Zone su Firebase: $redZone")
-
         repository.saveRedZone(
             redZone = redZone,
             onSuccess = {
-                Log.d(TAG, "Red Zone salvata correttamente")
+                if (!isAdded) return@saveRedZone
+
                 Toast.makeText(requireContext(), "Segnalazione salvata", Toast.LENGTH_SHORT).show()
                 googleMap?.clear()
+                routePolyline = null
                 loadRedZonesFromFirebase()
             },
             onError = { exception ->
-                Log.e(TAG, "Errore salvataggio Red Zone", exception)
+                if (!isAdded) return@saveRedZone
+
                 Toast.makeText(
                     requireContext(),
                     exception.message ?: "Errore salvataggio Red Zone",
@@ -233,34 +434,25 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
     }
 
     private fun loadRedZonesFromFirebase() {
-        Log.d(TAG, "loadRedZonesFromFirebase chiamato")
-
         repository.loadRedZones(
             onSuccess = { zones ->
                 if (!isAdded || context == null) return@loadRedZones
+
                 val now = System.currentTimeMillis()
-
-                Log.d(TAG, "Red Zones ricevute da Firestore: ${zones.size}")
-
-                googleMap?.clear()
-                enableUserLocationIfAllowed()
-
                 val activeZones = zones.filter { now - it.createdAt < redZoneDurationMs }
 
-                Log.d(TAG, "Red Zones attive da mostrare: ${activeZones.size}")
+                activeRedZones.clear()
+                activeRedZones.addAll(activeZones)
 
-                activeZones.forEach { zone ->
-                    Log.d(TAG, "Aggiungo marker: ${zone.title} ${zone.latitude}, ${zone.longitude}")
-                    addRedZoneToMap(zone)
-                }
+                googleMap?.clear()
+                routePolyline = null
+                enableUserLocationIfAllowed()
 
-                if (activeZones.isEmpty()) {
-                    Log.d(TAG, "Nessuna Red Zone attiva")
-                }
+                activeZones.forEach { addRedZoneToMap(it) }
             },
             onError = { exception ->
                 if (!isAdded || context == null) return@loadRedZones
-                Log.e(TAG, "Errore caricamento Red Zones da Firestore", exception)
+
                 Toast.makeText(
                     requireContext(),
                     exception.message ?: "Errore caricamento Red Zones",
@@ -271,13 +463,7 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
     }
 
     private fun addRedZoneToMap(redZone: RedZoneDto) {
-        val map = googleMap
-
-        if (map == null) {
-            Log.e(TAG, "addRedZoneToMap chiamato ma googleMap è null")
-            return
-        }
-
+        val map = googleMap ?: return
         val position = LatLng(redZone.latitude, redZone.longitude)
 
         map.addMarker(
@@ -290,7 +476,7 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
         map.addCircle(
             CircleOptions()
                 .center(position)
-                .radius(160.0)
+                .radius(redZoneRadiusMeters)
                 .strokeColor(0x99FF0000.toInt())
                 .fillColor(0x33FF0000)
                 .strokeWidth(4f)
@@ -304,14 +490,13 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             try {
                 googleMap?.isMyLocationEnabled = true
             } catch (exception: SecurityException) {
-                Log.e(TAG, "SecurityException su isMyLocationEnabled", exception)
+                Log.e(TAG, "Errore permesso posizione", exception)
             }
         }
     }
 
     private fun moveToCurrentLocation() {
         if (!hasLocationPermission()) {
-            Log.w(TAG, "No location permission, camera su Ancona")
             googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(anconaCenter, 14f))
             return
         }
@@ -320,27 +505,28 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location ->
-                if (location != null) {
-                    Log.d(TAG, "Camera su posizione corrente: ${location.latitude}, ${location.longitude}")
+                if (!isAdded) return@addOnSuccessListener
 
+                if (location != null) {
                     val currentPosition = LatLng(location.latitude, location.longitude)
                     googleMap?.animateCamera(
                         CameraUpdateFactory.newLatLngZoom(currentPosition, 16f)
                     )
                 } else {
-                    Log.w(TAG, "lastLocation null, camera su Ancona")
                     googleMap?.animateCamera(
                         CameraUpdateFactory.newLatLngZoom(anconaCenter, 14f)
                     )
                 }
             }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "Errore spostamento camera su posizione corrente", exception)
+            .addOnFailureListener {
+                if (!isAdded) return@addOnFailureListener
                 googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(anconaCenter, 14f))
             }
     }
 
     private fun hasLocationPermission(): Boolean {
+        if (!isAdded || context == null) return false
+
         val fine = ContextCompat.checkSelfPermission(
             requireContext(),
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -352,5 +538,134 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
         ) == PackageManager.PERMISSION_GRANTED
 
         return fine || coarse
+    }
+
+    private fun drawBestRouteAfterDetour(
+        detourRoutes: List<List<LatLng>>,
+        fallbackRoute: List<LatLng>
+    ) {
+        if (detourRoutes.isEmpty()) {
+            drawSafeRoute(fallbackRoute)
+            return
+        }
+
+        val evaluatedRoutes = detourRoutes.map { route ->
+            SafeRouteResult(
+                points = route,
+                dangerousIntersections = RouteSafetyUtils.countDangerousIntersections(
+                    routePoints = route,
+                    redZones = activeRedZones,
+                    redZoneRadiusMeters = redZoneRadiusMeters
+                ),
+                distanceMeters = RouteSafetyUtils.routeLengthMeters(route)
+            )
+        }
+
+        val bestRoute = evaluatedRoutes
+            .sortedWith(
+                compareBy<SafeRouteResult> { it.dangerousIntersections }
+                    .thenBy { it.distanceMeters }
+            )
+            .first()
+
+        drawSafeRoute(bestRoute.points)
+
+        val message = if (bestRoute.dangerousIntersections == 0) {
+            "Deviazione sicura trovata"
+        } else {
+            "Percorso migliore trovato, ma vicino a ${bestRoute.dangerousIntersections} zone rosse"
+        }
+
+        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun calculateCandidateRoutes(
+        origin: LatLng,
+        destinationAddress: String,
+        waypointSets: List<List<LatLng>>,
+        collectedRoutes: MutableList<List<LatLng>>,
+        index: Int,
+        fallbackRoute: List<LatLng>
+    ) {
+        if (index >= waypointSets.size) {
+            drawBestCandidateRoute(
+                routes = collectedRoutes,
+                fallbackRoute = fallbackRoute
+            )
+            return
+        }
+
+        safeRouteService.calculateWalkingRoutes(
+            apiKey = BuildConfig.MAPS_API_KEY,
+            origin = origin,
+            destinationAddress = destinationAddress,
+            waypoints = waypointSets[index],
+            onSuccess = { newRoutes ->
+                requireActivity().runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
+
+                    collectedRoutes.addAll(newRoutes)
+
+                    calculateCandidateRoutes(
+                        origin = origin,
+                        destinationAddress = destinationAddress,
+                        waypointSets = waypointSets,
+                        collectedRoutes = collectedRoutes,
+                        index = index + 1,
+                        fallbackRoute = fallbackRoute
+                    )
+                }
+            },
+            onError = {
+                requireActivity().runOnUiThread {
+                    if (!isAdded) return@runOnUiThread
+
+                    calculateCandidateRoutes(
+                        origin = origin,
+                        destinationAddress = destinationAddress,
+                        waypointSets = waypointSets,
+                        collectedRoutes = collectedRoutes,
+                        index = index + 1,
+                        fallbackRoute = fallbackRoute
+                    )
+                }
+            }
+        )
+    }
+
+    private fun drawBestCandidateRoute(
+        routes: List<List<LatLng>>,
+        fallbackRoute: List<LatLng>
+    ) {
+        val evaluatedRoutes = routes
+            .filter { it.size >= 2 }
+            .map {
+                RouteSafetyUtils.evaluateRoute(
+                    route = it,
+                    redZones = activeRedZones,
+                    redZoneRadiusMeters = redZoneRadiusMeters
+                )
+            }
+            .sortedWith(
+                compareBy<SafeRouteResult> { it.dangerousIntersections }
+                    .thenBy { it.distanceMeters }
+            )
+
+        if (evaluatedRoutes.isEmpty()) {
+            drawSafeRoute(fallbackRoute)
+            Toast.makeText(requireContext(), "Percorso migliore disponibile", Toast.LENGTH_LONG).show()
+            return
+        }
+
+        val bestRoute = evaluatedRoutes.first()
+        drawSafeRoute(bestRoute.points)
+
+        val message = if (bestRoute.dangerousIntersections == 0) {
+            "Deviazione sicura trovata"
+        } else {
+            "Percorso migliore trovato, ma vicino a ${bestRoute.dangerousIntersections} zone rosse"
+        }
+
+        Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
     }
 }
