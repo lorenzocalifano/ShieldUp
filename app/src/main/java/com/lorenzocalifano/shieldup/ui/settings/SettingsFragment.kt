@@ -18,33 +18,28 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
         val sessionManager = SessionManager(requireContext())
 
-        view.findViewById<TextView>(R.id.txtProfileInfo).text =
-            "${sessionManager.getName()}\n${sessionManager.getEmail()}\n${sessionManager.getRole()}"
+        view.findViewById<TextView>(R.id.txtProfileName).text = sessionManager.getName()
+        view.findViewById<TextView>(R.id.txtProfileEmail).text = sessionManager.getEmail()
 
+        val personalDataButton = view.findViewById<Button>(R.id.btnPersonalData)
         val emergencyContactsButton = view.findViewById<Button>(R.id.btnEmergencyContacts)
-        val assistanceButton = view.findViewById<Button>(R.id.btnAssistance)
+        val logoutButton = view.findViewById<Button>(R.id.btnLogout)
 
         if (sessionManager.getRole() == "PSYCHOLOGIST") {
             emergencyContactsButton.visibility = View.GONE
-            assistanceButton.visibility = View.GONE
         } else {
             emergencyContactsButton.visibility = View.VISIBLE
-            assistanceButton.visibility = View.VISIBLE
+        }
+
+        personalDataButton.setOnClickListener {
+            Toast.makeText(requireContext(), "Modifica dati da implementare", Toast.LENGTH_SHORT).show()
         }
 
         emergencyContactsButton.setOnClickListener {
             findNavController().navigate(R.id.contactsFragment)
         }
 
-        view.findViewById<Button>(R.id.btnPersonalData).setOnClickListener {
-            Toast.makeText(requireContext(), "Modifica dati da implementare", Toast.LENGTH_SHORT).show()
-        }
-
-        assistanceButton.setOnClickListener {
-            Toast.makeText(requireContext(), "Richiesta assistenza inviata", Toast.LENGTH_SHORT).show()
-        }
-
-        view.findViewById<Button>(R.id.btnLogout).setOnClickListener {
+        logoutButton.setOnClickListener {
             sessionManager.clearSession()
 
             findNavController().navigate(

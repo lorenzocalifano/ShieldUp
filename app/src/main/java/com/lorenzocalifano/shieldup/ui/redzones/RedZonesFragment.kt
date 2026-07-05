@@ -45,6 +45,15 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
         setupMap()
         setupButtons(view)
+
+        if (arguments?.getBoolean("openReportDialog") == true) {
+            view.postDelayed({
+                if (isAdded) {
+                    showAddRedZoneDialog()
+                    arguments?.remove("openReportDialog")
+                }
+            }, 500)
+        }
     }
 
     private fun setupMap() {
