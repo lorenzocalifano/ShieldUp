@@ -7,6 +7,11 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavOptions
 import androidx.navigation.fragment.NavHostFragment
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.os.Build
+import android.media.AudioAttributes
 import com.google.android.gms.maps.MapsInitializer
 import com.lorenzocalifano.shieldup.data.FirebaseRepository
 import com.lorenzocalifano.shieldup.databinding.ActivityMainBinding
@@ -34,6 +39,8 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        createCallChannel()
 
         MapsInitializer.initialize(
             applicationContext,
@@ -144,5 +151,28 @@ class MainActivity : AppCompatActivity() {
             .build()
 
         navigate(destinationId, null, options)
+    }
+
+    private fun createCallChannel() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = android.app.NotificationChannel(
+                "fake_call_v2",
+                "Fake Calls",
+                android.app.NotificationManager.IMPORTANCE_HIGH
+            )
+
+            channel.description = "Incoming fake calls"
+            channel.lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
+            channel.enableVibration(true)
+            channel.setSound(
+                android.provider.Settings.System.DEFAULT_RINGTONE_URI,
+                android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .build()
+            )
+
+            val manager = getSystemService(android.app.NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
     }
 }

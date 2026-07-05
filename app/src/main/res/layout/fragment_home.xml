@@ -143,6 +143,23 @@
 
         </LinearLayout>
 
+        <TextView
+            android:id="@+id/cardFakeCall"
+            android:layout_width="match_parent"
+            android:layout_height="82dp"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/bg_white_card"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:padding="12dp"
+            android:text="Chiamata simulata"
+            android:textAlignment="center"
+            android:textColor="@color/black"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
     </LinearLayout>
 
 </ScrollView>
