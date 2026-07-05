@@ -544,6 +544,107 @@ class FirebaseRepository {
             }
             .addOnFailureListener { onError(it) }
     }
+
+    fun createLiveLocationSession(
+        userId: String,
+        userName: String,
+        destination: String,
+        latitude: Double,
+        longitude: Double,
+        onSuccess: (String) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val now = System.currentTimeMillis()
+        val expiresAt = now + (3L * 60L * 60L * 1000L)
+
+        val data = hashMapOf(
+            "userId" to userId,
+            "userName" to userName,
+            "destination" to destination,
+            "latitude" to latitude,
+            "longitude" to longitude,
+            "active" to true,
+            "createdAt" to now,
+            "updatedAt" to now,
+            "expiresAt" to expiresAt
+        )
+
+        db.collection("liveLocations")
+            .add(data)
+            .addOnSuccessListener { doc ->
+                onSuccess(doc.id)
+            }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun updateLiveLocation(
+        sessionId: String,
+        latitude: Double,
+        longitude: Double,
+        onSuccess: () -> Unit = {},
+        onError: (Exception) -> Unit = {}
+    ) {
+        db.collection("liveLocations")
+            .document(sessionId)
+            .update(
+                mapOf(
+                    "latitude" to latitude,
+                    "longitude" to longitude,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            )
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun stopLiveLocationSession(
+        sessionId: String,
+        onSuccess: () -> Unit = {},
+        onError: (Exception) -> Unit = {}
+    ) {
+        db.collection("liveLocations")
+            .document(sessionId)
+            .update(
+                mapOf(
+                    "active" to false,
+                    "updatedAt" to System.currentTimeMillis()
+                )
+            )
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { onError(it) }
+    }
+
+    fun loadLiveLocationSession(
+        sessionId: String,
+        onSuccess: (LiveLocationDto?) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("liveLocations")
+            .document(sessionId)
+            .get()
+            .addOnSuccessListener { doc ->
+                if (!doc.exists()) {
+                    onSuccess(null)
+                    return@addOnSuccessListener
+                }
+
+                val session = LiveLocationDto(
+                    id = doc.id,
+                    userId = doc.getString("userId") ?: "",
+                    userName = doc.getString("userName") ?: "",
+                    destination = doc.getString("destination") ?: "",
+                    latitude = doc.getDouble("latitude") ?: 0.0,
+                    longitude = doc.getDouble("longitude") ?: 0.0,
+                    active = doc.getBoolean("active") ?: false,
+                    createdAt = doc.getLong("createdAt") ?: 0L,
+                    updatedAt = doc.getLong("updatedAt") ?: 0L,
+                    expiresAt = doc.getLong("expiresAt") ?: 0L
+                )
+
+                onSuccess(session)
+            }
+            .addOnFailureListener { onError(it) }
+    }
 }
 
 data class UserDto(
@@ -609,4 +710,17 @@ data class MessageDto(
     val senderName: String,
     val text: String,
     val createdAt: Long
+)
+
+data class LiveLocationDto(
+    val id: String = "",
+    val userId: String,
+    val userName: String,
+    val destination: String,
+    val latitude: Double,
+    val longitude: Double,
+    val active: Boolean,
+    val createdAt: Long,
+    val updatedAt: Long,
+    val expiresAt: Long
 )

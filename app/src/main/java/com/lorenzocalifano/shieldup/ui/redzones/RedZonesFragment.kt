@@ -28,6 +28,7 @@ import com.lorenzocalifano.shieldup.R
 import com.lorenzocalifano.shieldup.data.FirebaseRepository
 import com.lorenzocalifano.shieldup.data.RedZoneDto
 import com.lorenzocalifano.shieldup.utils.SessionManager
+import com.lorenzocalifano.shieldup.ui.followme.FollowMeManager
 
 class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
@@ -45,6 +46,10 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
     private var safeRouteMode = false
 
+    private var followMeMode = false
+    private var followMeManager: FollowMeManager? = null
+    private var currentLiveSessionId: String? = null
+
     companion object {
         private const val TAG = "SHIELDUP_MAP"
     }
@@ -56,6 +61,12 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
         setupMap()
         setupButtons(view)
+
+        followMeMode = arguments?.getBoolean("followMeMode") == true
+
+        if (followMeMode) {
+            showFollowMeDestinationDialog()
+        }
 
         if (arguments?.getBoolean("openReportDialog") == true) {
             view.postDelayed({
@@ -667,5 +678,42 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
         }
 
         Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+    }
+
+    private fun showFollowMeDestinationDialog() {
+
+        val input = EditText(requireContext())
+
+        AlertDialog.Builder(requireContext())
+            .setTitle("Seguimi a casa")
+            .setMessage("Inserisci la destinazione")
+            .setView(input)
+            .setNegativeButton("Annulla", null)
+            .setPositiveButton("Calcola", null)
+            .create()
+            .also { dialog ->
+
+                dialog.setOnShowListener {
+
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+
+                        val destination =
+                            input.text.toString().trim()
+
+                        if (destination.isEmpty()) {
+                            input.error = "Inserisci una destinazione"
+                            return@setOnClickListener
+                        }
+
+                        calculateSafeRoute(destination)
+
+                        dialog.dismiss()
+                    }
+
+                }
+
+            }
+            .show()
+
     }
 }
