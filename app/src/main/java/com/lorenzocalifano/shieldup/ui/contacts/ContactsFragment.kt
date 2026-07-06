@@ -15,14 +15,20 @@ import androidx.navigation.fragment.findNavController
 import com.lorenzocalifano.shieldup.R
 import com.lorenzocalifano.shieldup.data.EmergencyContactDto
 import com.lorenzocalifano.shieldup.data.FirebaseRepository
+import com.lorenzocalifano.shieldup.utils.SessionManager
 
 class ContactsFragment : Fragment(R.layout.fragment_contacts) {
 
     private val repository = FirebaseRepository()
-    private val currentUserId = "demo_user"
+    private lateinit var currentUserId: String
     private val contacts = mutableListOf<EmergencyContactDto>()
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        val session = SessionManager(requireContext())
+        currentUserId = session.getUserId()
+
         val backButton = view.findViewById<TextView>(R.id.btnBack)
         val etName = view.findViewById<EditText>(R.id.etName)
         val etPhone = view.findViewById<EditText>(R.id.etPhone)

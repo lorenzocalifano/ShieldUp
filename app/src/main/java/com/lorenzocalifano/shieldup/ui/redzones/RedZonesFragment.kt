@@ -11,6 +11,8 @@ import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import android.telephony.SmsManager
+import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.navigation.fragment.findNavController
@@ -29,6 +31,8 @@ import com.lorenzocalifano.shieldup.data.FirebaseRepository
 import com.lorenzocalifano.shieldup.data.RedZoneDto
 import com.lorenzocalifano.shieldup.utils.SessionManager
 import com.lorenzocalifano.shieldup.ui.followme.FollowMeManager
+import com.lorenzocalifano.shieldup.ui.followme.FollowMeRepository
+import com.lorenzocalifano.shieldup.ui.followme.FollowMeSessionDto
 
 class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
 
@@ -47,7 +51,10 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
     private var safeRouteMode = false
 
     private var followMeMode = false
-    private var followMeManager: FollowMeManager? = null
+
+    private lateinit var followMeManager: FollowMeManager
+    private val followMeRepository = FollowMeRepository()
+
     private var currentLiveSessionId: String? = null
 
     companion object {
@@ -57,6 +64,7 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        followMeManager = FollowMeManager(requireContext())
         safeRouteMode = arguments?.getBoolean("safeRouteMode") == true
 
         setupMap()
@@ -165,56 +173,71 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             return
         }
 
-        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
+        if (!hasLocationPermission()) {
+            return
+        }
 
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location ->
-                val origin = if (location != null) {
-                    LatLng(location.latitude, location.longitude)
-                } else {
-                    googleMap?.cameraPosition?.target ?: anconaCenter
+        try {
+            val fusedLocationClient =
+                LocationServices.getFusedLocationProviderClient(requireActivity())
+
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location ->
+                    val origin = if (location != null) {
+                        LatLng(location.latitude, location.longitude)
+                    } else {
+                        googleMap?.cameraPosition?.target ?: anconaCenter
+                    }
+
+                    Toast.makeText(requireContext(), "Calcolo percorso sicuro...", Toast.LENGTH_SHORT).show()
+
+                    safeRouteService.calculateWalkingRoutes(
+                        apiKey = BuildConfig.MAPS_API_KEY,
+                        origin = origin,
+                        destinationAddress = destinationAddress,
+                        onSuccess = { routes ->
+                            requireActivity().runOnUiThread {
+                                if (!isAdded) return@runOnUiThread
+                                chooseAndDrawSafestRoute(
+                                    routes = routes,
+                                    origin = origin,
+                                    destinationAddress = destinationAddress
+                                )
+                            }
+                        },
+                        onError = { exception ->
+                            requireActivity().runOnUiThread {
+                                if (!isAdded) return@runOnUiThread
+
+                                Log.e(TAG, "Errore calcolo percorso sicuro", exception)
+
+                                Toast.makeText(
+                                    requireContext(),
+                                    exception.message ?: "Errore calcolo percorso",
+                                    Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    )
+                }
+                .addOnFailureListener { exception ->
+                    Log.e(TAG, "Errore recupero posizione", exception)
+
+                    Toast.makeText(
+                        requireContext(),
+                        "Errore recupero posizione",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
 
-                Toast.makeText(requireContext(), "Calcolo percorso sicuro...", Toast.LENGTH_SHORT).show()
+        } catch (e: SecurityException) {
+            Toast.makeText(
+                requireContext(),
+                "Permesso posizione non disponibile",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
 
-                safeRouteService.calculateWalkingRoutes(
-                    apiKey = BuildConfig.MAPS_API_KEY,
-                    origin = origin,
-                    destinationAddress = destinationAddress,
-                    onSuccess = { routes ->
-                        requireActivity().runOnUiThread {
-                            if (!isAdded) return@runOnUiThread
-                            chooseAndDrawSafestRoute(
-                                routes = routes,
-                                origin = origin,
-                                destinationAddress = destinationAddress
-                            )
-                        }
-                    },
-                    onError = { exception ->
-                        requireActivity().runOnUiThread {
-                            if (!isAdded) return@runOnUiThread
-
-                            Log.e(TAG, "Errore calcolo percorso sicuro", exception)
-
-                            Toast.makeText(
-                                requireContext(),
-                                exception.message ?: "Errore calcolo percorso",
-                                Toast.LENGTH_LONG
-                            ).show()
-                        }
-                    }
-                )
-            }
-            .addOnFailureListener { exception ->
-                Log.e(TAG, "Errore recupero posizione", exception)
-
-                Toast.makeText(
-                    requireContext(),
-                    "Errore recupero posizione",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
     }
 
     private fun chooseAndDrawSafestRoute(
@@ -385,22 +408,36 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             return
         }
 
-        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
+        if (!hasLocationPermission()) {
+            return
+        }
 
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location ->
-                val position = if (location != null) {
-                    LatLng(location.latitude, location.longitude)
-                } else {
-                    googleMap?.cameraPosition?.target ?: anconaCenter
+        try {
+            val fusedLocationClient =
+                LocationServices.getFusedLocationProviderClient(requireActivity())
+
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location ->
+                    val position = if (location != null) {
+                        LatLng(location.latitude, location.longitude)
+                    } else {
+                        googleMap?.cameraPosition?.target ?: anconaCenter
+                    }
+
+                    saveRedZoneToFirebase(title, description, position)
+                }
+                .addOnFailureListener {
+                    val position = googleMap?.cameraPosition?.target ?: anconaCenter
+                    saveRedZoneToFirebase(title, description, position)
                 }
 
-                saveRedZoneToFirebase(title, description, position)
-            }
-            .addOnFailureListener {
-                val position = googleMap?.cameraPosition?.target ?: anconaCenter
-                saveRedZoneToFirebase(title, description, position)
-            }
+        } catch (e: SecurityException) {
+            Toast.makeText(
+                requireContext(),
+                "Permesso posizione non disponibile",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     private fun saveUsingMapCenter(title: String, description: String) {
@@ -512,27 +549,41 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             return
         }
 
-        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(requireActivity())
+        if (!hasLocationPermission()) {
+            return
+        }
 
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location ->
-                if (!isAdded) return@addOnSuccessListener
+        try {
+            val fusedLocationClient =
+                LocationServices.getFusedLocationProviderClient(requireActivity())
 
-                if (location != null) {
-                    val currentPosition = LatLng(location.latitude, location.longitude)
-                    googleMap?.animateCamera(
-                        CameraUpdateFactory.newLatLngZoom(currentPosition, 16f)
-                    )
-                } else {
-                    googleMap?.animateCamera(
-                        CameraUpdateFactory.newLatLngZoom(anconaCenter, 14f)
-                    )
+            fusedLocationClient.lastLocation
+                .addOnSuccessListener { location ->
+                    if (!isAdded) return@addOnSuccessListener
+
+                    if (location != null) {
+                        val currentPosition = LatLng(location.latitude, location.longitude)
+                        googleMap?.animateCamera(
+                            CameraUpdateFactory.newLatLngZoom(currentPosition, 16f)
+                        )
+                    } else {
+                        googleMap?.animateCamera(
+                            CameraUpdateFactory.newLatLngZoom(anconaCenter, 14f)
+                        )
+                    }
                 }
-            }
-            .addOnFailureListener {
-                if (!isAdded) return@addOnFailureListener
-                googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(anconaCenter, 14f))
-            }
+                .addOnFailureListener {
+                    if (!isAdded) return@addOnFailureListener
+                    googleMap?.animateCamera(CameraUpdateFactory.newLatLngZoom(anconaCenter, 14f))
+                }
+
+        } catch (e: SecurityException) {
+            Toast.makeText(
+                requireContext(),
+                "Permesso posizione non disponibile",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
     }
 
     private fun hasLocationPermission(): Boolean {
@@ -689,31 +740,220 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             .setMessage("Inserisci la destinazione")
             .setView(input)
             .setNegativeButton("Annulla", null)
-            .setPositiveButton("Calcola", null)
+            .setPositiveButton("Avvia", null)
             .create()
             .also { dialog ->
 
                 dialog.setOnShowListener {
 
-                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+                        .setOnClickListener {
 
-                        val destination =
-                            input.text.toString().trim()
+                            val destination = input.text.toString().trim()
 
-                        if (destination.isEmpty()) {
-                            input.error = "Inserisci una destinazione"
-                            return@setOnClickListener
+                            if (destination.isEmpty()) {
+                                input.error = "Inserisci una destinazione"
+                                return@setOnClickListener
+                            }
+
+                            startFollowMe(destination)
+
+                            dialog.dismiss()
                         }
-
-                        calculateSafeRoute(destination)
-
-                        dialog.dismiss()
-                    }
 
                 }
 
             }
             .show()
 
+    }
+
+    private fun startFollowMe(destination: String) {
+
+        val session = SessionManager(requireContext())
+
+        val dto = FollowMeSessionDto(
+            userId = session.getUserId(),
+            userName = session.getName(),
+            destination = destination
+        )
+
+        followMeRepository.createSession(
+
+            session = dto,
+            onSuccess = { sessionId ->
+
+                currentLiveSessionId = sessionId
+                followMeManager.startTracking(sessionId)
+
+                val followMeLink = buildFollowMeLink(sessionId)
+
+                Log.d("SHIELDUP_FOLLOWME", "Sessione FollowMe: $sessionId")
+                Log.d("SHIELDUP_FOLLOWME", "Link FollowMe: $followMeLink")
+
+                sendFollowMeLinkToEmergencyContacts(followMeLink)
+
+                showStopFollowMeButton()
+
+                requireActivity().runOnUiThread {
+
+                    Toast.makeText(
+                        requireContext(),
+                        "Condivisione posizione avviata",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    calculateSafeRoute(destination)
+
+                }
+
+            },
+
+            onError = {
+
+                requireActivity().runOnUiThread {
+
+                    Toast.makeText(
+                        requireContext(),
+                        "Errore avvio Follow Me",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                }
+            }
+        )
+    }
+
+    private fun buildFollowMeLink(sessionId: String): String {
+        return "https://shieldup-925d1.web.app/followme.html?id=$sessionId"
+    }
+
+    private fun sendFollowMeLinkToEmergencyContacts(link: String) {
+        val session = SessionManager(requireContext())
+
+        repository.loadEmergencyContacts(
+            userId = session.getUserId(),
+            onSuccess = { contacts ->
+                if (!isAdded) return@loadEmergencyContacts
+
+                if (contacts.isEmpty()) {
+                    Toast.makeText(
+                        requireContext(),
+                        "Nessun contatto di emergenza salvato",
+                        Toast.LENGTH_LONG
+                    ).show()
+
+                    Log.d("SHIELDUP_FOLLOWME", "Nessun contatto. Link: $link")
+                    return@loadEmergencyContacts
+                }
+
+                val message = "${session.getName()} ha avviato Seguimi a casa.\n\nLink sessione:\n$link"
+
+                contacts.forEach { contact ->
+                    sendSmsToContact(contact.phone, message)
+                }
+
+                Toast.makeText(
+                    requireContext(),
+                    "Link FollowMe inviato ai contatti",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                Log.d("SHIELDUP_FOLLOWME", "Messaggio inviato/loggato: $message")
+            },
+            onError = { exception ->
+                if (!isAdded) return@loadEmergencyContacts
+
+                Toast.makeText(
+                    requireContext(),
+                    "Errore caricamento contatti emergenza",
+                    Toast.LENGTH_LONG
+                ).show()
+
+                Log.e("SHIELDUP_FOLLOWME", "Errore contatti", exception)
+                Log.d("SHIELDUP_FOLLOWME", "Link FollowMe: $link")
+            }
+        )
+    }
+
+    private fun sendSmsToContact(phone: String, message: String) {
+        try {
+            val smsManager = SmsManager.getDefault()
+            val parts = smsManager.divideMessage(message)
+
+            smsManager.sendMultipartTextMessage(
+                phone,
+                null,
+                parts,
+                null,
+                null
+            )
+
+            Log.d("SHIELDUP_FOLLOWME", "SMS inviato a $phone")
+        } catch (exception: Exception) {
+            Log.e("SHIELDUP_FOLLOWME", "SMS non inviato a $phone", exception)
+            Log.d("SHIELDUP_FOLLOWME", "Messaggio per $phone: $message")
+        }
+    }
+
+    private fun showStopFollowMeButton() {
+        val root = view as? FrameLayout ?: return
+
+        if (root.findViewWithTag<Button>("STOP_FOLLOW_ME_BUTTON") != null) return
+
+        val button = Button(requireContext()).apply {
+            tag = "STOP_FOLLOW_ME_BUTTON"
+            text = "Termina condivisione"
+            setTextColor(resources.getColor(R.color.white, null))
+            setBackgroundResource(R.drawable.bg_red_button)
+
+            setOnClickListener {
+                stopFollowMe()
+                root.removeView(this)
+            }
+        }
+
+        val params = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            60.dp()
+        ).apply {
+            leftMargin = 22.dp()
+            rightMargin = 22.dp()
+            bottomMargin = 92.dp()
+            gravity = android.view.Gravity.BOTTOM
+        }
+
+        root.addView(button, params)
+    }
+
+    private fun stopFollowMe() {
+        followMeManager.stopTracking()
+
+        currentLiveSessionId?.let { sessionId ->
+            followMeRepository.stopSession(sessionId)
+            Log.d("SHIELDUP_FOLLOWME", "Sessione FollowMe terminata: $sessionId")
+        }
+
+        currentLiveSessionId = null
+
+        Toast.makeText(
+            requireContext(),
+            "Condivisione posizione terminata",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+
+    private fun Int.dp(): Int {
+        return (this * resources.displayMetrics.density).toInt()
+    }
+
+    override fun onDestroyView() {
+        currentLiveSessionId?.let { sessionId ->
+            followMeRepository.stopSession(sessionId)
+        }
+
+        followMeManager.stopTracking()
+
+        super.onDestroyView()
     }
 }
