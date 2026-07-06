@@ -39,16 +39,9 @@
             </intent-filter>
         </activity>
 
-        <receiver
-            android:name=".ui.fakecall.FakeCallReceiver"
-            android:enabled="true"
-            android:exported="false" />
-
         <activity
             android:name=".ui.fakecall.FakeCallActivity"
             android:exported="false"
-            android:showWhenLocked="true"
-            android:turnScreenOn="true"
             android:theme="@style/Theme.ShieldUp" />
     </application>
 

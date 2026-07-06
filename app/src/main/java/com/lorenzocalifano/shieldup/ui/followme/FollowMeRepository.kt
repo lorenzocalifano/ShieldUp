@@ -61,4 +61,33 @@ class FollowMeRepository {
 
     }
 
+    fun stopActiveSessionsForUser(
+        userId: String,
+        onComplete: () -> Unit
+    ) {
+        db.collection("liveLocations")
+            .whereEqualTo("userId", userId)
+            .whereEqualTo("active", true)
+            .get()
+            .addOnSuccessListener { result ->
+                val batch = db.batch()
+
+                result.documents.forEach { doc ->
+                    batch.update(
+                        doc.reference,
+                        mapOf(
+                            "active" to false,
+                            "updatedAt" to System.currentTimeMillis()
+                        )
+                    )
+                }
+
+                batch.commit()
+                    .addOnSuccessListener { onComplete() }
+                    .addOnFailureListener { onComplete() }
+            }
+            .addOnFailureListener {
+                onComplete()
+            }
+    }
 }

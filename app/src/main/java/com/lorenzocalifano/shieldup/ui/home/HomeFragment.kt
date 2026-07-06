@@ -1,23 +1,20 @@
 package com.lorenzocalifano.shieldup.ui.home
 
-import android.os.Bundle
-import android.view.View
-import android.widget.TextView
-import androidx.fragment.app.Fragment
-import androidx.navigation.fragment.findNavController
 import android.app.AlertDialog
+import android.content.Intent
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.widget.Toast
-import com.lorenzocalifano.shieldup.ui.fakecall.FakeCallNotification
-import com.lorenzocalifano.shieldup.R
-import com.lorenzocalifano.shieldup.utils.SessionManager
-import android.Manifest
-import android.content.pm.PackageManager
-import android.os.Build
+import android.view.View
 import android.widget.EditText
 import android.widget.LinearLayout
-import androidx.core.content.ContextCompat
+import android.widget.TextView
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import androidx.navigation.fragment.findNavController
+import com.lorenzocalifano.shieldup.R
+import com.lorenzocalifano.shieldup.ui.fakecall.FakeCallActivity
+import com.lorenzocalifano.shieldup.utils.SessionManager
 
 class HomeFragment : Fragment(R.layout.fragment_home) {
 
@@ -47,10 +44,7 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
                 putBoolean("followMeMode", true)
             }
 
-            findNavController().navigate(
-                R.id.redZonesFragment,
-                bundle
-            )
+            findNavController().navigate(R.id.redZonesFragment, bundle)
         }
 
         view.findViewById<TextView>(R.id.cardSafeRouteCalculator).setOnClickListener {
@@ -67,18 +61,6 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     }
 
     private fun showFakeCallDialog() {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Toast.makeText(
-                requireContext(),
-                "Consenti le notifiche per usare la chiamata simulata",
-                Toast.LENGTH_LONG
-            ).show()
-            return
-        }
-
         val container = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(32, 16, 32, 0)
@@ -124,20 +106,14 @@ class HomeFragment : Fragment(R.layout.fragment_home) {
     }
 
     private fun scheduleFakeCall(callerName: String, delayMillis: Long) {
-        /*
         Handler(Looper.getMainLooper()).postDelayed({
             if (!isAdded) return@postDelayed
 
-            FakeCallNotification.showIncomingCallNotification(
-                context = requireContext(),
-                callerName = callerName
-            )
-        }, delayMillis)*/
-        Handler(Looper.getMainLooper()).postDelayed({
-            FakeCallNotification.showIncomingCallNotification(
-                requireContext(),
-                "Contatto fidato"
-            )
-        }, 5000)
+            val intent = Intent(requireContext(), FakeCallActivity::class.java).apply {
+                putExtra("callerName", callerName)
+            }
+
+            startActivity(intent)
+        }, delayMillis)
     }
 }

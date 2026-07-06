@@ -645,6 +645,44 @@ class FirebaseRepository {
             }
             .addOnFailureListener { onError(it) }
     }
+
+    fun updateUserProfile(
+        userId: String,
+        name: String,
+        surname: String,
+        email: String,
+        onSuccess: () -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        val cleanName = name.trim()
+        val cleanSurname = surname.trim()
+        val cleanEmail = email.trim().lowercase()
+
+        db.collection("users")
+            .whereEqualTo("email", cleanEmail)
+            .get()
+            .addOnSuccessListener { result ->
+                val emailUsedByOtherUser = result.documents.any { it.id != userId }
+
+                if (emailUsedByOtherUser) {
+                    onError(Exception("Questa email è già usata da un altro account"))
+                    return@addOnSuccessListener
+                }
+
+                db.collection("users")
+                    .document(userId)
+                    .update(
+                        mapOf(
+                            "name" to cleanName,
+                            "surname" to cleanSurname,
+                            "email" to cleanEmail
+                        )
+                    )
+                    .addOnSuccessListener { onSuccess() }
+                    .addOnFailureListener { onError(it) }
+            }
+            .addOnFailureListener { onError(it) }
+    }
 }
 
 data class UserDto(

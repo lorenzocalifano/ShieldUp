@@ -778,50 +778,41 @@ class RedZonesFragment : Fragment(R.layout.fragment_red_zones) {
             destination = destination
         )
 
-        followMeRepository.createSession(
+        followMeRepository.stopActiveSessionsForUser(session.getUserId()) {
+            followMeRepository.createSession(
+                session = dto,
+                onSuccess = { sessionId ->
+                    currentLiveSessionId = sessionId
 
-            session = dto,
-            onSuccess = { sessionId ->
+                    val followMeLink = buildFollowMeLink(sessionId)
 
-                currentLiveSessionId = sessionId
-                followMeManager.startTracking(sessionId)
+                    Log.d("SHIELDUP_FOLLOWME", "NUOVO LINK FOLLOWME: $followMeLink")
 
-                val followMeLink = buildFollowMeLink(sessionId)
+                    followMeManager.startTracking(sessionId)
+                    sendFollowMeLinkToEmergencyContacts(followMeLink)
+                    showStopFollowMeButton()
 
-                Log.d("SHIELDUP_FOLLOWME", "Sessione FollowMe: $sessionId")
-                Log.d("SHIELDUP_FOLLOWME", "Link FollowMe: $followMeLink")
+                    requireActivity().runOnUiThread {
+                        Toast.makeText(
+                            requireContext(),
+                            "Condivisione posizione avviata",
+                            Toast.LENGTH_LONG
+                        ).show()
 
-                sendFollowMeLinkToEmergencyContacts(followMeLink)
-
-                showStopFollowMeButton()
-
-                requireActivity().runOnUiThread {
-
-                    Toast.makeText(
-                        requireContext(),
-                        "Condivisione posizione avviata",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                    calculateSafeRoute(destination)
-
+                        calculateSafeRoute(destination)
+                    }
+                },
+                onError = {
+                    requireActivity().runOnUiThread {
+                        Toast.makeText(
+                            requireContext(),
+                            "Errore avvio Follow Me",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
-
-            },
-
-            onError = {
-
-                requireActivity().runOnUiThread {
-
-                    Toast.makeText(
-                        requireContext(),
-                        "Errore avvio Follow Me",
-                        Toast.LENGTH_LONG
-                    ).show()
-
-                }
-            }
-        )
+            )
+        }
     }
 
     private fun buildFollowMeLink(sessionId: String): String {
