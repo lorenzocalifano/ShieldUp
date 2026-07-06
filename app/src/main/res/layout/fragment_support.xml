@@ -66,19 +66,6 @@
             android:layout_marginTop="12dp"
             android:orientation="vertical" />
 
-        <Button
-            android:id="@+id/btnOtherReports"
-            android:layout_width="match_parent"
-            android:layout_height="62dp"
-            android:layout_marginTop="24dp"
-            android:background="@drawable/bg_yellow_button"
-            android:gravity="center"
-            android:text="Altre segnalazioni"
-            android:textColor="@color/black"
-            android:textSize="17sp"
-            android:textStyle="bold"
-            app:backgroundTint="@null" />
-
     </LinearLayout>
 
 </ScrollView>

@@ -33,10 +33,6 @@ class SupportFragment : Fragment(R.layout.fragment_support) {
             createUrgentRequest()
         }
 
-        view.findViewById<Button>(R.id.btnOtherReports).setOnClickListener {
-            Toast.makeText(requireContext(), "Sezione altre segnalazioni da implementare", Toast.LENGTH_SHORT).show()
-        }
-
         loadAvailableSlots()
     }
 
